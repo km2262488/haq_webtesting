@@ -11,7 +11,7 @@ init(autoreset=True)
 # ============ BANNER HOLOGRAM HAQTIVIST (UKURAN KECIL - WARNA KUNING) ============
 def print_hologram_banner():
     banner_text = r"""
-("═══════════════════════════════════════════════════
+═══════════════════════════════════════════════════
  ██  ██ ▄████▄ ▄█████▄ ██████ ██ ██  ██ ██ ▄█████ ██████ 
  ██████ ██▄▄██ ██ ▄ ██   ██   ██ ██▄▄██ ██ ▀▀▀▄▄▄   ██   
  ██  ██ ██  ██ ▀█████▀   ██   ██  ▀██▀  ██ █████▀   ██   
@@ -43,7 +43,6 @@ stats = {
 lock = threading.Lock()
 stop_flag = threading.Event()
 
-# ============ FITUR TAMBAHAN ============
 
 def generate_user_agent():
     """Random User-Agent untuk menghindari deteksi"""
