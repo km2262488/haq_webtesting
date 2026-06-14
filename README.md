@@ -1,26 +1,4 @@
-```markdown
-# 🔥 HAQTIVIST HTTP TESTER v2.0
 
-<div align="center">
-
-![Python Version](https://img.shields.io/badge/Python-3.7+-blue.svg)
-![License](https://img.shields.io/badge/License-Educational%20Only-red.svg)
-![Platform](https://img.shields.io/badge/Platform-Linux%20%7C%20Windows%20%7C%20Mac-lightgrey.svg)
-
-```
-
-╔══════════════════════════════════════════════════════════════╗
-║   ██╗  ██╗ █████╗  ██████╗ ████████╗██╗██╗   ██╗██╗███████╗ ██╗
-║   ██║  ██║██╔══██╗██╔═══██╗╚══██╔══╝██║██║   ██║██║██╔════╝ ██║
-║   ███████║███████║██║   ██║   ██║   ██║██║   ██║██║█████╗   ██║
-║   ██╔══██║██╔══██║██║▄▄ ██║   ██║   ██║╚██╗ ██╔╝██║██╔══╝   ██║
-║   ██║  ██║██║  ██║╚██████╔╝   ██║   ██║ ╚████╔╝ ██║███████╗ ██║
-║   ╚═╝  ╚═╝╚═╝  ╚═╝ ╚══▀▀═╝    ╚═╝   ╚═╝  ╚═══╝  ╚═╝╚══════╝ ╚═╝
-║                    ◢◤◢◤ H A Q T I V I S T ◢◤◢◤                    ║
-║              "Ethical Security Testing & Research"               ║
-╚══════════════════════════════════════════════════════════════╝
-
-```
 
 **Alat Testing HTTP untuk Keperluan Etis & Edukasi**
 
