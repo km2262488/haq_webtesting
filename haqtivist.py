@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 HAQTIVIST HTTP TESTER v3.0
-Ethical Security Testing Tool - Untuk Server Milik Sendiri
+Ethical Security Testing Tool
 """
 
 import socket
