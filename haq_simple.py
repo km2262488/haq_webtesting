@@ -38,12 +38,14 @@ def worker(target, port, duration, stats, lock, stop_flag):
             stats['bytes'] += bytes_recv
         time.sleep(0.05)
 
+# ============ MAIN PROGRAM ============
 print("="*50)
 print("   HAQTIVIST HTTP TESTER - SIMPLE VERSION")
 print("="*50)
 
 if len(sys.argv) < 5:
-    print("Usage: python haqtivist.py <IP> <PORT> <THREADS> <DURATION>")
+    print("Usage: python haq_simple.py <IP> <PORT> <THREADS> <DURATION>")
+    print("Example: python haq_simple.py localhost 8080 5 10")
     sys.exit()
 
 target = sys.argv[1]
@@ -60,27 +62,39 @@ print(f"\nTesting {target}:{port} with {threads} threads for {duration}s\n")
 thread_list = []
 start_time = time.time()
 
+# Start all threads
 for _ in range(threads):
     t = threading.Thread(target=worker, args=(target, port, duration, stats, lock, stop_flag))
+    t.daemon = True
     t.start()
     thread_list.append(t)
 
-# Hentikan tepat waktu, jangan menunggu response selesai
-while time.time() - start_time < duration:
-    if stop_flag.is_set():
-        break
-    time.sleep(0.1)
+# Live stats display
+try:
+    while time.time() - start_time < duration:
+        elapsed = time.time() - start_time
+        with lock:
+            rps = stats['total'] / elapsed if elapsed > 0 else 0
+            # Clear line and show stats
+            sys.stdout.write(f"\r\033[K")
+            sys.stdout.write(f"⏱️ {elapsed:5.1f}s | ✓ {stats['success']:6d} | ✗ {stats['fail']:6d} | 📊 RPS: {rps:6.1f}")
+            sys.stdout.flush()
+        time.sleep(0.3)
     
-# Setelah duration habis, langsung stop
-stop_flag.set()
-            break
+    # Setelah duration habis, stop semua thread
+    stop_flag.set()
+    
 except KeyboardInterrupt:
+    print(f"\n\n[!] Testing dihentikan oleh user")
     stop_flag.set()
 
+# Wait for all threads to finish
 for t in thread_list:
-    t.join(timeout=1)
+    t.join(timeout=2)
 
 elapsed = time.time() - start_time
+
+# Final report
 print(f"\n\n{'='*50}")
 print("HASIL AKHIR")
 print(f"{'='*50}")
@@ -88,7 +102,10 @@ print(f"✓ Success: {stats['success']}")
 print(f"✗ Fail: {stats['fail']}")
 print(f"📦 Total: {stats['total']}")
 print(f"⏱️ Durasi: {elapsed:.2f}s")
-print(f"🚀 RPS: {stats['total']/elapsed:.1f}")
+print(f"🚀 RPS: {stats['total']/elapsed:.1f}" if elapsed > 0 else "N/A")
 print(f"💾 Transfer: {stats['bytes']/1024:.1f} KB")
-print(f"🎯 Success Rate: {stats['success']/stats['total']*100:.1f}%" if stats['total'] > 0 else "N/A")
+if stats['total'] > 0:
+    print(f"🎯 Success Rate: {stats['success']/stats['total']*100:.1f}%")
+else:
+    print("🎯 Success Rate: N/A")
 print(f"{'='*50}")
