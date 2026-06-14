@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
-HAQTIVIST HTTP TESTER v1.0
-Ethical Security Testing Tool
+HAQTIVIST HTTP TESTER v3.0
+Ethical Security Testing Tool - Untuk Server Milik Sendiri
 """
 
 import socket
@@ -56,11 +56,11 @@ stats = {
 lock = threading.Lock()
 stop_flag = threading.Event()
 
-# Konfigurasi payload untuk POST
+# Konfigurasi payload untuk POST - FIXED
 POST_PAYLOADS = [
-    "{"username":"test","password":"test123"}",
+    '{"username":"test","password":"test123"}',
     "name=test&email=test@example.com",
-    "{"data":"sample","value":123}",
+    '{"data":"sample","value":123}',
     "------WebKitFormBoundary\r\nContent-Disposition: form-data; name=\"file\"\r\n\r\ntest\r\n------WebKitFormBoundary--"
 ]
 
@@ -95,27 +95,27 @@ def save_report(filename="haqtivist_report.json"):
     """Simpan hasil test ke file JSON"""
     report = {
         "timestamp": datetime.now().isoformat(),
-        "stats": stats.copy(),
+        "stats": {
+            'success': stats['success'],
+            'success_2xx': stats['success_2xx'],
+            'redirect_3xx': stats['redirect_3xx'],
+            'client_error_4xx': stats['client_error_4xx'],
+            'server_error_5xx': stats['server_error_5xx'],
+            'timeout': stats['timeout'],
+            'error': stats['error'],
+            'total_requests': stats['total_requests'],
+            'bytes_transferred': stats['bytes_transferred']
+        },
         "avg_response_time": sum(stats['response_times']) / len(stats['response_times']) if stats['response_times'] else 0,
         "duration": (stats['end_time'] - stats['start_time']) if stats['end_time'] and stats['start_time'] else 0
     }
-    report['stats']['response_times'] = None  # Hapus array besar
     
     with open(filename, 'w') as f:
         json.dump(report, f, indent=2)
     print(f"{Fore.GREEN}[+] Report saved to {filename}")
 
-def show_progress_bar(current, total, width=40):
-    """Progress bar"""
-    if total == 0:
-        return
-    percent = current / total
-    filled = int(width * percent)
-    bar = '█' * filled + '░' * (width - filled)
-    return f"|{bar}| {percent*100:.1f}%"
-
 def live_stats_display(threads_active, elapsed, rps, target, port):
-    """Tampilan statistik real-time yang lebih baik"""
+    """Tampilan statistik real-time"""
     with lock:
         sys.stdout.write(f"\r\033[K")
         status_line = (
@@ -211,7 +211,6 @@ def test_request(target, port, endpoint="/", method="GET", delay=0, payload=None
                 elif "500" in response_str or "502" in response_str or "503" in response_str:
                     stats['server_error_5xx'] += 1
                 else:
-                    # Unknown response, anggap sukses jika ada data
                     if len(response) > 10:
                         stats['success'] += 1
                     else:
@@ -252,7 +251,7 @@ def worker(target, port, endpoint, method, duration, delay, payload=None):
         elif stats['error'] > 100 and request_count % 100 == 0:
             time.sleep(0.1)
 
-def attack_mode(target, port, endpoint, duration, threads, method="GET", delay=0, payload=None, verbose=False):
+def attack_mode(target, port, endpoint, duration, threads, method="GET", delay=0, payload=None):
     """Mode testing utama"""
     print(f"\n{Fore.CYAN}┌{'─'*68}┐")
     print(f"{Fore.CYAN}│{Fore.YELLOW} TEST CONFIGURATION{Fore.CYAN} {' ' * 52}│")
@@ -317,7 +316,6 @@ def show_final_report():
     print(f"{Fore.YELLOW}📊 HASIL AKHIR HAQTIVIST HTTP TESTER")
     print(f"{Fore.CYAN}{'═'*70}")
     
-    # Statistik Request
     print(f"\n{Fore.WHITE}📈 STATISTIK REQUEST:")
     print(f"  {Fore.GREEN}✓ 2xx Success:     {stats['success_2xx']}")
     print(f"  {Fore.LIGHTBLUE_EX}↻ 3xx Redirect:    {stats['redirect_3xx']}")
@@ -327,7 +325,6 @@ def show_final_report():
     print(f"  {Fore.RED}💥 Socket Error:    {stats['error']}")
     print(f"  {Fore.WHITE}📦 Total Request:   {stats['total_requests']}")
     
-    # Performance
     print(f"\n{Fore.WHITE}⚡ PERFORMANCE:")
     print(f"  {Fore.YELLOW}🕒 Durasi:          {elapsed:.2f} detik")
     print(f"  {Fore.YELLOW}🚀 Rata-rata RPS:    {stats['total_requests']/elapsed:.1f} req/detik")
@@ -336,18 +333,14 @@ def show_final_report():
         avg_response = sum(stats['response_times']) / len(stats['response_times']) * 1000
         min_response = min(stats['response_times']) * 1000
         max_response = max(stats['response_times']) * 1000
-        p95_response = sorted(stats['response_times'])[int(len(stats['response_times'])*0.95)] * 1000
         print(f"  {Fore.YELLOW}⏱️  Response Time (avg):  {avg_response:.1f}ms")
         print(f"  {Fore.YELLOW}⏱️  Response Time (min):   {min_response:.1f}ms")
         print(f"  {Fore.YELLOW}⏱️  Response Time (max):   {max_response:.1f}ms")
-        print(f"  {Fore.YELLOW}⏱️  Response Time (p95):   {p95_response:.1f}ms")
     
-    # Bandwidth
     print(f"\n{Fore.WHITE}💾 BANDWIDTH:")
     print(f"  {Fore.YELLOW}📤 Total Transfer:   {stats['bytes_transferred']/1024/1024:.2f} MB")
     print(f"  {Fore.YELLOW}📤 Rata-rata Transfer: {stats['bytes_transferred']/1024/elapsed:.1f} KB/s")
     
-    # Success Rate
     print(f"\n{Fore.WHITE}🎯 SUCCESS RATE: ", end="")
     if success_rate >= 95:
         print(f"{Fore.GREEN}{success_rate:.1f}% (Excellent) ⭐⭐⭐⭐⭐")
@@ -359,19 +352,6 @@ def show_final_report():
         print(f"{Fore.MAGENTA}{success_rate:.1f}% (Poor) ⭐⭐")
     else:
         print(f"{Fore.RED}{success_rate:.1f}% (Bad) ⭐")
-    
-    # Grade
-    print(f"\n{Fore.WHITE}🏆 GRADE: ", end="")
-    if stats['total_requests'] > 0 and stats['error'] == 0 and stats['timeout'] == 0:
-        print(f"{Fore.GREEN}A+ (Perfect - No errors!)")
-    elif success_rate >= 95 and stats['timeout'] < 10:
-        print(f"{Fore.GREEN}A (Excellent)")
-    elif success_rate >= 80:
-        print(f"{Fore.LIGHTGREEN_EX}B (Good)")
-    elif success_rate >= 60:
-        print(f"{Fore.YELLOW}C (Fair)")
-    else:
-        print(f"{Fore.RED}D (Poor - Check server configuration)")
     
     print(f"\n{Fore.CYAN}{'═'*70}")
     print(f"{Fore.LIGHTBLACK_EX}Test completed at {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
@@ -409,7 +389,6 @@ def interactive_mode():
 if __name__ == "__main__":
     print_banner()
     
-    # Parse arguments atau interactive mode
     if len(sys.argv) < 2:
         print(f"{Fore.YELLOW}Usage: python haqtivist.py [OPTIONS]")
         print(f"\n{Fore.CYAN}Options:")
@@ -427,7 +406,6 @@ if __name__ == "__main__":
         print(f"  {Fore.WHITE}python haqtivist.py localhost 8080 10 10")
         sys.exit()
     
-    # Default values
     target = "localhost"
     port = 8080
     threads = 10
@@ -438,11 +416,9 @@ if __name__ == "__main__":
     save_report_flag = False
     payload = None
     
-    # Parse arguments
     if "--interactive" in sys.argv or "-i" in sys.argv:
         target, port, method, endpoint, threads, duration, delay, save_report_flag = interactive_mode()
     elif len(sys.argv) >= 4 and sys.argv[1] != "--target":
-        # Short format: python haqtivist.py <IP> <PORT> <THREADS> <DURATION> [METHOD] [DELAY]
         target = sys.argv[1]
         port = int(sys.argv[2])
         threads = int(sys.argv[3])
@@ -450,7 +426,6 @@ if __name__ == "__main__":
         method = sys.argv[5].upper() if len(sys.argv) > 5 else "GET"
         delay = float(sys.argv[6].replace(',', '.')) if len(sys.argv) > 6 else 0
     else:
-        # Long format with --target
         for i, arg in enumerate(sys.argv):
             if arg == "--target" and i+1 < len(sys.argv):
                 target = sys.argv[i+1]
@@ -466,11 +441,7 @@ if __name__ == "__main__":
                 delay = float(sys.argv[i+1].replace(',', '.'))
             elif arg == "--save":
                 save_report_flag = True
-            elif arg == "--help" or arg == "-h":
-                print(f"{Fore.CYAN}HAQTIVIST HTTP TESTER - Help")
-                sys.exit()
     
-    # Konfirmasi untuk non-localhost
     if target != "localhost" and target != "127.0.0.1":
         print(f"{Fore.RED}[!] PERINGATAN: Target '{target}' bukan localhost!")
         print(f"{Fore.RED}[!] Hanya testing server milik sendiri yang diizinkan!")
@@ -479,11 +450,8 @@ if __name__ == "__main__":
             print(f"{Fore.RED}Testing dibatalkan.")
             sys.exit()
     
-    # Jalankan test
     attack_mode(target, port, endpoint, duration, threads, method, delay, payload)
     show_final_report()
     
-    # Save report jika diminta
     if save_report_flag:
         save_report()
-```
