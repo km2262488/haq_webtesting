@@ -147,7 +147,7 @@ def attack_mode(target, port, endpoint, duration, threads, method="GET", delay=0
     print(f"   {Fore.LIGHTBLACK_EX}└─ Delay:      {Fore.LIGHTWHITE_EX}{delay} detik")
     print(f"{Fore.CYAN}{'='*70}")
     
-    print(f"\n{Fore.YELLOW}[!] PERINGATAN: Hanya untuk server milik sendiri!")
+    print(f"\n{Fore.YELLOW}[!] PERINGATAN: Bismillah dulu baru tekan enter!")
     print(f"{Fore.LIGHTBLACK_EX}[*] Memulai testing... Tekan Ctrl+C untuk berhenti\n")
     
     # Header Live Stats
