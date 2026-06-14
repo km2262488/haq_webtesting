@@ -48,8 +48,8 @@
 
 ```bash
 # Clone repository (jika dari GitHub)
-git clone https://github.com/haqtivist/http-tester.git
-cd http-tester
+git clone https://github.com/km2262488/haq_webtesting.git
+cd haq_webtesting
 
 # Install required packages
 pip install colorama
@@ -59,13 +59,13 @@ Manual Setup
 
 ```bash
 # Download file haqtivist.py
-wget https://raw.githubusercontent.com/haqtivist/http-tester/main/haqtivist.py
+wget https://raw.githubusercontent.com/haqtivist/haq_webtesting/main/haqtivist.py
 
 # Install colorama
 pip install colorama
 
 # Jalankan
-python haqtivist.py
+python3 haqtivist.py
 ```
 
 ---
