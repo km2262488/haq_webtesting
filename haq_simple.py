@@ -65,18 +65,14 @@ for _ in range(threads):
     t.start()
     thread_list.append(t)
 
-# Live stats
-try:
-    while any(t.is_alive() for t in thread_list):
-        time.sleep(0.5)
-        elapsed = time.time() - start_time
-        with lock:
-            rps = stats['total'] / elapsed if elapsed > 0 else 0
-            sys.stdout.write(f"\r✓ Success: {stats['success']} | ✗ Fail: {stats['fail']} | "
-                           f"📊 RPS: {rps:.1f} | ⏱️ {elapsed:.1f}s")
-            sys.stdout.flush()
-        if elapsed >= duration:
-            stop_flag.set()
+# Hentikan tepat waktu, jangan menunggu response selesai
+while time.time() - start_time < duration:
+    if stop_flag.is_set():
+        break
+    time.sleep(0.1)
+    
+# Setelah duration habis, langsung stop
+stop_flag.set()
             break
 except KeyboardInterrupt:
     stop_flag.set()
