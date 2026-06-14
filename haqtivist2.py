@@ -11,13 +11,13 @@ init(autoreset=True)
 # ============ BANNER HOLOGRAM HAQTIVIST (UKURAN KECIL - WARNA KUNING) ============
 def print_hologram_banner():
     banner_text = r"""
-═══════════════════════════════════════════════════
+══════════════════════════════════════════════════════════════
  ██  ██ ▄████▄ ▄█████▄ ██████ ██ ██  ██ ██ ▄█████ ██████ 
  ██████ ██▄▄██ ██ ▄ ██   ██   ██ ██▄▄██ ██ ▀▀▀▄▄▄   ██   
  ██  ██ ██  ██ ▀█████▀   ██   ██  ▀██▀  ██ █████▀   ██   
                    ▀▀      
-                  H A Q T I V I S T   Ethical Security Testing Tool  
-═══════════════════════════════════════════════════
+  HAQ Ethical Security Testing Tool  
+═══════════════════════════════════════════════════════════════
     """
     
     # Warna kuning solid untuk semua baris
