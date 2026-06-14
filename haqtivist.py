@@ -167,13 +167,14 @@ def attack_mode(target, port, endpoint, duration, threads, method="GET", delay=0
             t.start()
             thread_list.append(t)
         
-        # LIVE STATS UPDATE REAL TIME
-        while any(t.is_alive() for t in thread_list):
-            time.sleep(0.3)
-            elapsed = time.time() - start_time
-            
-            if elapsed >= duration:
-                stop_flag.set()
+# Hentikan tepat waktu, jangan menunggu response selesai
+while time.time() - start_time < duration:
+    if stop_flag.is_set():
+        break
+    time.sleep(0.1)
+    
+# Setelah duration habis, langsung stop
+stop_flag.set()
                 break
             
             # Update display setiap loop
