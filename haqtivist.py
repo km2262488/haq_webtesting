@@ -1,95 +1,191 @@
+#!/usr/bin/env python3
+"""
+HAQTIVIST HTTP TESTER v1.0
+Ethical Security Testing Tool
+"""
+
 import socket
 import threading
 import time
 import sys
 import random
+import json
+import os
 from datetime import datetime
 from colorama import init, Fore, Style
 
 init(autoreset=True)
 
-# ============ BANNER HOLOGRAM HAQTIVIST (UKURAN KECIL - WARNA KUNING) ============
-def print_hologram_banner():
-    banner_text = r"""
-══════════════════════════════════════════════════════════════
- ██  ██ ▄████▄ ▄█████▄ ██████ ██ ██  ██ ██ ▄█████ ██████ 
- ██████ ██▄▄██ ██ ▄ ██   ██   ██ ██▄▄██ ██ ▀▀▀▄▄▄   ██   
- ██  ██ ██  ██ ▀█████▀   ██   ██  ▀██▀  ██ █████▀   ██   
-                   ▀▀      
-  HAQ Ethical Security Testing Tool  
-═══════════════════════════════════════════════════════════════
-    """
-    
-    # Warna kuning solid untuk semua baris
-    for line in banner_text.split('\n'):
-        print(Fore.YELLOW + line + Style.RESET_ALL)
-        time.sleep(0.02)  # Efek animasi
-    
-    print(Fore.LIGHTBLACK_EX + "\n" + "="*50)
-    print(Fore.YELLOW + f"[+] HAQTIVIST HTTP TESTER v2.0 | Started at {datetime.now().strftime('%H:%M:%S')}")
-    print(Fore.LIGHTBLACK_EX + "="*50 + "\n")
+# ============ BANNER ============
+def print_banner():
+    banner = f"""
+{Fore.YELLOW}╔══════════════════════════════════════════════════════════════════╗
+{Fore.YELLOW}║                                                                      ║
+{Fore.YELLOW}║   {Fore.LIGHTYELLOW_EX}██╗  ██╗ █████╗  ██████╗ ████████╗██╗██╗   ██╗██╗███████╗████████╗{Fore.YELLOW}   ║
+{Fore.YELLOW}║   {Fore.LIGHTYELLOW_EX}██║  ██║██╔══██╗██╔═══██╗╚══██╔══╝██║██║   ██║██║██╔════╝╚══██╔══╝{Fore.YELLOW}   ║
+{Fore.YELLOW}║   {Fore.LIGHTYELLOW_EX}███████║███████║██║   ██║   ██║   ██║██║   ██║██║█████╗     ██║   {Fore.YELLOW}   ║
+{Fore.YELLOW}║   {Fore.LIGHTYELLOW_EX}██╔══██║██╔══██║██║▄▄ ██║   ██║   ██║╚██╗ ██╔╝██║██╔══╝     ██║   {Fore.YELLOW}   ║
+{Fore.YELLOW}║   {Fore.LIGHTYELLOW_EX}██║  ██║██║  ██║╚██████╔╝   ██║   ██║ ╚████╔╝ ██║███████╗   ██║   {Fore.YELLOW}   ║
+{Fore.YELLOW}║   {Fore.LIGHTYELLOW_EX}╚═╝  ╚═╝╚═╝  ╚═╝ ╚══▀▀═╝    ╚═╝   ╚═╝  ╚═══╝  ╚═╝╚══════╝   ╚═╝   {Fore.YELLOW}   ║
+{Fore.YELLOW}║                                                                      ║
+{Fore.YELLOW}║              {Fore.LIGHTYELLOW_EX}H A Q T I V I S T   v3.0{Fore.YELLOW}                              ║
+{Fore.YELLOW}║           {Fore.WHITE}Ethical HTTP Performance Tester{Fore.YELLOW}                          ║
+{Fore.YELLOW}╚══════════════════════════════════════════════════════════════════╝{Style.RESET_ALL}
+"""
+    print(banner)
+    print(f"{Fore.LIGHTBLACK_EX}[+] Started at: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+    print(f"{Fore.LIGHTBLACK_EX}[+] Mode: Ethical Testing Only")
+    print(f"{Fore.YELLOW}{'='*70}{Style.RESET_ALL}\n")
 
-# ============ KONFIGURASI & STATISTIK ============
+# ============ KONFIGURASI ============
 stats = {
     'success': 0,
-    'fail': 0,
+    'success_2xx': 0,
+    'redirect_3xx': 0,
+    'client_error_4xx': 0,
+    'server_error_5xx': 0,
     'timeout': 0,
     'error': 0,
     'total_requests': 0,
     'bytes_transferred': 0,
-    'response_times': []
+    'response_times': [],
+    'start_time': None,
+    'end_time': None
 }
 
 lock = threading.Lock()
 stop_flag = threading.Event()
 
+# Konfigurasi payload untuk POST
+POST_PAYLOADS = [
+    "{"username":"test","password":"test123"}",
+    "name=test&email=test@example.com",
+    "{"data":"sample","value":123}",
+    "------WebKitFormBoundary\r\nContent-Disposition: form-data; name=\"file\"\r\n\r\ntest\r\n------WebKitFormBoundary--"
+]
+
+# ============ FITUR TAMBAHAN ============
 
 def generate_user_agent():
-    """Random User-Agent untuk menghindari deteksi"""
+    """Random User-Agent"""
     agents = [
-        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/120.0.0.0",
         "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36",
         "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36",
-        "Mozilla/5.0 (iPhone; CPU iPhone OS 14_0 like Mac OS X) AppleWebKit/605.1.15"
+        "Mozilla/5.0 (iPhone; CPU iPhone OS 14_0 like Mac OS X)",
+        "Mozilla/5.0 (Windows NT 10.0; rv:109.0) Gecko/20100101 Firefox/121.0"
     ]
     return random.choice(agents)
 
-def live_stats_display(threads_active, elapsed, rps):
-    """Tampilan statistik real-time"""
-    sys.stdout.write(f"\r\033[K")  # Clear line
-    sys.stdout.write(f"{Fore.YELLOW}⚡ Active: {threads_active} | "
-                     f"{Fore.GREEN}✓ Success: {stats['success']} | "
-                     f"{Fore.RED}✗ Fail: {stats['fail']} | "
-                     f"{Fore.CYAN}📊 RPS: {rps:.1f} | "
-                     f"{Fore.MAGENTA}⏱️ Elapsed: {elapsed:.1f}s{Style.RESET_ALL}")
-    sys.stdout.flush()
+def get_random_headers(target):
+    """Generate random HTTP headers"""
+    headers = {
+        "Accept": random.choice(["text/html", "application/json", "application/xml", "*/*"]),
+        "Accept-Language": random.choice(["id-ID,id;q=0.9", "en-US,en;q=0.8", "ms-MY,ms;q=0.9"]),
+        "Accept-Encoding": "gzip, deflate",
+        "Cache-Control": random.choice(["no-cache", "max-age=0", "no-store"]),
+        "Origin": f"http://{target}",
+        "Referer": f"http://{target}/",
+        "DNT": "1",
+        "X-Forwarded-For": f"{random.randint(1,255)}.{random.randint(1,255)}.{random.randint(1,255)}.{random.randint(1,255)}"
+    }
+    return headers
 
-def test_request_advanced(target, port, endpoint="/", method="GET", use_proxy=False):
-    """HTTP Request dengan fitur advanced"""
+def save_report(filename="haqtivist_report.json"):
+    """Simpan hasil test ke file JSON"""
+    report = {
+        "timestamp": datetime.now().isoformat(),
+        "stats": stats.copy(),
+        "avg_response_time": sum(stats['response_times']) / len(stats['response_times']) if stats['response_times'] else 0,
+        "duration": (stats['end_time'] - stats['start_time']) if stats['end_time'] and stats['start_time'] else 0
+    }
+    report['stats']['response_times'] = None  # Hapus array besar
+    
+    with open(filename, 'w') as f:
+        json.dump(report, f, indent=2)
+    print(f"{Fore.GREEN}[+] Report saved to {filename}")
+
+def show_progress_bar(current, total, width=40):
+    """Progress bar"""
+    if total == 0:
+        return
+    percent = current / total
+    filled = int(width * percent)
+    bar = '█' * filled + '░' * (width - filled)
+    return f"|{bar}| {percent*100:.1f}%"
+
+def live_stats_display(threads_active, elapsed, rps, target, port):
+    """Tampilan statistik real-time yang lebih baik"""
+    with lock:
+        sys.stdout.write(f"\r\033[K")
+        status_line = (
+            f"{Fore.YELLOW}🎯 {target}:{port} | "
+            f"{Fore.CYAN}🧵 {threads_active} | "
+            f"{Fore.GREEN}✓ {stats['success']} | "
+            f"{Fore.RED}✗ {stats['error']+stats['timeout']} | "
+            f"{Fore.MAGENTA}📊 RPS: {rps:.1f} | "
+            f"{Fore.LIGHTBLUE_EX}⏱️ {elapsed:.1f}s"
+        )
+        sys.stdout.write(status_line + Style.RESET_ALL)
+        sys.stdout.flush()
+
+def test_request(target, port, endpoint="/", method="GET", delay=0, payload=None):
+    """HTTP Request dengan berbagai fitur"""
     global stats
     start_time = time.time()
+    s = None
     
     try:
         s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         s.settimeout(5)
         s.connect((target, port))
         
-        # Generate random parameter
-        random_param = f"?id={random.randint(1000,9999)}&t={int(time.time())}"
+        # Generate parameter random
+        random_param = f"?_={int(time.time())}&r={random.randint(1000,9999)}"
         
-        # Header lengkap seperti browser real
-        request = f"{method} {endpoint}{random_param} HTTP/1.1\r\n"
+        # Buat request berdasarkan method
+        if method == "GET":
+            request_line = f"{method} {endpoint}{random_param} HTTP/1.1\r\n"
+        elif method == "POST":
+            if not payload:
+                payload = random.choice(POST_PAYLOADS)
+            request_line = f"{method} {endpoint} HTTP/1.1\r\n"
+        else:
+            request_line = f"{method} {endpoint} HTTP/1.1\r\n"
+        
+        # Headers
+        headers = get_random_headers(target)
+        request = request_line
         request += f"Host: {target}\r\n"
         request += f"User-Agent: {generate_user_agent()}\r\n"
-        request += "Accept: text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8\r\n"
-        request += "Accept-Language: id-ID,id;q=0.9,en;q=0.8\r\n"
-        request += "Accept-Encoding: gzip, deflate\r\n"
-        request += "Connection: keep-alive\r\n"
-        request += "Upgrade-Insecure-Requests: 1\r\n"
-        request += "\r\n"
+        
+        for key, value in headers.items():
+            request += f"{key}: {value}\r\n"
+        
+        if method == "POST" and payload:
+            request += f"Content-Type: application/x-www-form-urlencoded\r\n"
+            request += f"Content-Length: {len(payload)}\r\n"
+            request += "\r\n"
+            request += payload
+        else:
+            request += "Connection: close\r\n"
+            request += "\r\n"
         
         s.send(request.encode())
-        response = s.recv(4096)
+        
+        # Baca response
+        response = b""
+        while True:
+            try:
+                chunk = s.recv(8192)
+                if not chunk:
+                    break
+                response += chunk
+            except socket.timeout:
+                break
+            except:
+                break
+        
         response_time = time.time() - start_time
         
         with lock:
@@ -97,181 +193,297 @@ def test_request_advanced(target, port, endpoint="/", method="GET", use_proxy=Fa
             stats['bytes_transferred'] += len(response)
             stats['response_times'].append(response_time)
             
-            # Analisis response code
-            response_str = response[:50].decode('utf-8', errors='ignore')
-            if "200" in response_str or "301" in response_str or "302" in response_str:
-                stats['success'] += 1
-                status = Fore.GREEN + "✓ OK"
-            elif "403" in response_str:
-                stats['fail'] += 1
-                status = Fore.YELLOW + "⚠ Forbidden"
-            elif "404" in response_str:
-                stats['fail'] += 1
-                status = Fore.YELLOW + "✗ Not Found"
-            elif "500" in response_str or "502" in response_str or "503" in response_str:
-                stats['fail'] += 1
-                status = Fore.RED + "🔥 Server Error"
+            # Analisis response
+            if len(response) > 0:
+                response_str = response[:100].decode('utf-8', errors='ignore')
+                
+                if "200" in response_str:
+                    stats['success'] += 1
+                    stats['success_2xx'] += 1
+                elif "201" in response_str or "204" in response_str:
+                    stats['success'] += 1
+                    stats['success_2xx'] += 1
+                elif "301" in response_str or "302" in response_str or "307" in response_str:
+                    stats['success'] += 1
+                    stats['redirect_3xx'] += 1
+                elif "400" in response_str or "401" in response_str or "403" in response_str or "404" in response_str:
+                    stats['client_error_4xx'] += 1
+                elif "500" in response_str or "502" in response_str or "503" in response_str:
+                    stats['server_error_5xx'] += 1
+                else:
+                    # Unknown response, anggap sukses jika ada data
+                    if len(response) > 10:
+                        stats['success'] += 1
+                    else:
+                        stats['client_error_4xx'] += 1
             else:
-                stats['fail'] += 1
-                status = Fore.LIGHTBLACK_EX + f"Code: {response_str[:15]}"
-            
-            # Optional detail print (dikurangi spam)
-            if random.random() < 0.05:  # Hanya 5% request yang ditampilkan
-                print(f"\n{status} | {response_time*1000:.1f}ms | {target}:{port}{endpoint}")
-        
-        s.close()
+                stats['error'] += 1
         
     except socket.timeout:
         with lock:
             stats['timeout'] += 1
-            stats['fail'] += 1
             stats['total_requests'] += 1
-    except socket.error as e:
+    except ConnectionRefusedError:
         with lock:
             stats['error'] += 1
-            stats['fail'] += 1
             stats['total_requests'] += 1
     except Exception as e:
         with lock:
             stats['error'] += 1
-            stats['fail'] += 1
             stats['total_requests'] += 1
+    finally:
+        if s:
+            try:
+                s.close()
+            except:
+                pass
 
-def worker_optimized(target, port, endpoint, method, duration, delay=0):
-    """Worker dengan delay adjustable"""
+def worker(target, port, endpoint, method, duration, delay, payload=None):
+    """Worker thread"""
     start_time = time.time()
     request_count = 0
     
     while not stop_flag.is_set() and (time.time() - start_time) < duration:
-        test_request_advanced(target, port, endpoint, method)
+        test_request(target, port, endpoint, method, delay, payload)
         request_count += 1
         
-        # Dynamic delay berdasarkan kondisi server
         if delay > 0:
             time.sleep(delay)
-        elif stats['fail'] > 100 and request_count % 50 == 0:
-            time.sleep(0.05)  # Slow down jika banyak error
+        elif stats['error'] > 100 and request_count % 100 == 0:
+            time.sleep(0.1)
 
-def attack_mode(target, port, endpoint, duration, threads, method="GET", delay=0):
-    """Mode serangan (untuk testing server sendiri dengan izin)"""
-    print(f"\n{Fore.YELLOW}[+] Memulai test mode ke {target}:{port}{endpoint}")
-    print(f"{Fore.LIGHTBLACK_EX}[!] Threads: {threads} | Duration: {duration}s | Method: {method} | Delay: {delay}s")
-    print(f"{Fore.RED}[!] PERINGATAN: Hanya untuk server milik sendiri!\n")
+def attack_mode(target, port, endpoint, duration, threads, method="GET", delay=0, payload=None, verbose=False):
+    """Mode testing utama"""
+    print(f"\n{Fore.CYAN}┌{'─'*68}┐")
+    print(f"{Fore.CYAN}│{Fore.YELLOW} TEST CONFIGURATION{Fore.CYAN} {' ' * 52}│")
+    print(f"{Fore.CYAN}├{'─'*68}┤")
+    print(f"{Fore.CYAN}│{Fore.WHITE} Target:     {Fore.LIGHTWHITE_EX}{target}:{port}{Fore.CYAN} {' ' * (56 - len(f'{target}:{port}'))}│")
+    print(f"{Fore.CYAN}│{Fore.WHITE} Endpoint:   {Fore.LIGHTWHITE_EX}{endpoint}{Fore.CYAN} {' ' * (56 - len(endpoint))}│")
+    print(f"{Fore.CYAN}│{Fore.WHITE} Method:     {Fore.LIGHTWHITE_EX}{method}{Fore.CYAN} {' ' * 56}│")
+    print(f"{Fore.CYAN}│{Fore.WHITE} Threads:    {Fore.LIGHTWHITE_EX}{threads}{Fore.CYAN} {' ' * 56}│")
+    print(f"{Fore.CYAN}│{Fore.WHITE} Duration:   {Fore.LIGHTWHITE_EX}{duration}s{Fore.CYAN} {' ' * 55}│")
+    print(f"{Fore.CYAN}│{Fore.WHITE} Delay:      {Fore.LIGHTWHITE_EX}{delay}s{Fore.CYAN} {' ' * 55}│")
+    print(f"{Fore.CYAN}└{'─'*68}┘")
+    
+    print(f"\n{Fore.YELLOW}[!] PERINGATAN: Hanya untuk server milik sendiri!")
+    print(f"{Fore.LIGHTBLACK_EX}[*] Memulai testing...\n")
     
     start_time = time.time()
+    stats['start_time'] = start_time
+    
     thread_list = []
     
     try:
         for _ in range(threads):
-            t = threading.Thread(target=worker_optimized, args=(target, port, endpoint, method, duration, delay))
+            t = threading.Thread(target=worker, args=(target, port, endpoint, method, duration, delay, payload))
             t.daemon = True
             t.start()
             thread_list.append(t)
         
-        # Live stats display selama pengujian
         last_update = time.time()
         last_requests = 0
         
         while any(t.is_alive() for t in thread_list):
-            time.sleep(0.5)
+            time.sleep(0.3)
             elapsed = time.time() - start_time
             
             if elapsed >= duration:
                 stop_flag.set()
                 break
             
-            # Hitung RPS setiap 1 detik
-            if time.time() - last_update >= 1:
+            if time.time() - last_update >= 0.8:
                 with lock:
                     current_requests = stats['total_requests']
-                    rps = current_requests - last_requests
+                    rps = (current_requests - last_requests) / 0.8
                     last_requests = current_requests
-                    
-                    live_stats_display(threads, elapsed, rps)
+                    live_stats_display(len(thread_list), elapsed, rps, target, port)
                     last_update = time.time()
         
         for t in thread_list:
             t.join(timeout=1)
             
     except KeyboardInterrupt:
-        print(f"\n\n{Fore.RED}[!] Test dihentikan oleh user")
+        print(f"\n\n{Fore.RED}[!] Testing dihentikan oleh user")
         stop_flag.set()
+    
+    stats['end_time'] = time.time()
 
-def show_final_report(start_timestamp):
-    """Laporan akhir dengan analisis lengkap"""
-    elapsed = time.time() - start_timestamp
+def show_final_report():
+    """Laporan akhir yang detail"""
+    elapsed = stats['end_time'] - stats['start_time'] if stats['end_time'] and stats['start_time'] else 0
+    success_rate = (stats['success'] / stats['total_requests'] * 100) if stats['total_requests'] > 0 else 0
     
-    print(f"\n\n{Fore.YELLOW}{'='*50}")
+    print(f"\n\n{Fore.CYAN}{'═'*70}")
     print(f"{Fore.YELLOW}📊 HASIL AKHIR HAQTIVIST HTTP TESTER")
-    print(f"{Fore.YELLOW}{'='*50}")
+    print(f"{Fore.CYAN}{'═'*70}")
     
-    print(f"{Fore.WHITE}\n📈 STATISTIK REQUEST:")
-    print(f"  {Fore.GREEN}✓ Sukses (2xx/3xx): {stats['success']}")
-    print(f"  {Fore.YELLOW}⚠ Gagal (4xx): {stats['fail'] - stats['timeout'] - stats['error']}")
-    print(f"  {Fore.RED}⌛ Timeout: {stats['timeout']}")
-    print(f"  {Fore.RED}💥 Error Socket: {stats['error']}")
-    print(f"  {Fore.WHITE}📦 Total Request: {stats['total_requests']}")
+    # Statistik Request
+    print(f"\n{Fore.WHITE}📈 STATISTIK REQUEST:")
+    print(f"  {Fore.GREEN}✓ 2xx Success:     {stats['success_2xx']}")
+    print(f"  {Fore.LIGHTBLUE_EX}↻ 3xx Redirect:    {stats['redirect_3xx']}")
+    print(f"  {Fore.YELLOW}⚠ 4xx Client Error: {stats['client_error_4xx']}")
+    print(f"  {Fore.RED}🔥 5xx Server Error: {stats['server_error_5xx']}")
+    print(f"  {Fore.MAGENTA}⌛ Timeout:         {stats['timeout']}")
+    print(f"  {Fore.RED}💥 Socket Error:    {stats['error']}")
+    print(f"  {Fore.WHITE}📦 Total Request:   {stats['total_requests']}")
     
-    print(f"{Fore.WHITE}\n⚡ PERFORMANCE:")
-    print(f"  {Fore.YELLOW}🕒 Durasi: {elapsed:.2f} detik")
-    print(f"  {Fore.YELLOW}🚀 Rata-rata RPS: {stats['total_requests']/elapsed:.1f} req/detik")
+    # Performance
+    print(f"\n{Fore.WHITE}⚡ PERFORMANCE:")
+    print(f"  {Fore.YELLOW}🕒 Durasi:          {elapsed:.2f} detik")
+    print(f"  {Fore.YELLOW}🚀 Rata-rata RPS:    {stats['total_requests']/elapsed:.1f} req/detik")
     
     if stats['response_times']:
         avg_response = sum(stats['response_times']) / len(stats['response_times']) * 1000
         min_response = min(stats['response_times']) * 1000
         max_response = max(stats['response_times']) * 1000
-        print(f"  {Fore.YELLOW}⏱️  Response Time (avg): {avg_response:.1f}ms")
-        print(f"  {Fore.YELLOW}⏱️  Response Time (min/max): {min_response:.1f}/{max_response:.1f}ms")
+        p95_response = sorted(stats['response_times'])[int(len(stats['response_times'])*0.95)] * 1000
+        print(f"  {Fore.YELLOW}⏱️  Response Time (avg):  {avg_response:.1f}ms")
+        print(f"  {Fore.YELLOW}⏱️  Response Time (min):   {min_response:.1f}ms")
+        print(f"  {Fore.YELLOW}⏱️  Response Time (max):   {max_response:.1f}ms")
+        print(f"  {Fore.YELLOW}⏱️  Response Time (p95):   {p95_response:.1f}ms")
     
-    print(f"{Fore.WHITE}\n💾 BANDWIDTH:")
-    print(f"  {Fore.YELLOW}📤 Total Transfer: {stats['bytes_transferred']/1024/1024:.2f} MB")
+    # Bandwidth
+    print(f"\n{Fore.WHITE}💾 BANDWIDTH:")
+    print(f"  {Fore.YELLOW}📤 Total Transfer:   {stats['bytes_transferred']/1024/1024:.2f} MB")
     print(f"  {Fore.YELLOW}📤 Rata-rata Transfer: {stats['bytes_transferred']/1024/elapsed:.1f} KB/s")
     
-    # Success rate
-    success_rate = (stats['success'] / stats['total_requests'] * 100) if stats['total_requests'] > 0 else 0
-    print(f"{Fore.WHITE}\n🎯 SUCCESS RATE: ", end="")
-    if success_rate >= 90:
-        print(f"{Fore.GREEN}{success_rate:.1f}% (Excellent)")
-    elif success_rate >= 70:
-        print(f"{Fore.YELLOW}{success_rate:.1f}% (Good)")
-    elif success_rate >= 50:
-        print(f"{Fore.MAGENTA}{success_rate:.1f}% (Average)")
+    # Success Rate
+    print(f"\n{Fore.WHITE}🎯 SUCCESS RATE: ", end="")
+    if success_rate >= 95:
+        print(f"{Fore.GREEN}{success_rate:.1f}% (Excellent) ⭐⭐⭐⭐⭐")
+    elif success_rate >= 80:
+        print(f"{Fore.LIGHTGREEN_EX}{success_rate:.1f}% (Good) ⭐⭐⭐⭐")
+    elif success_rate >= 60:
+        print(f"{Fore.YELLOW}{success_rate:.1f}% (Average) ⭐⭐⭐")
+    elif success_rate >= 40:
+        print(f"{Fore.MAGENTA}{success_rate:.1f}% (Poor) ⭐⭐")
     else:
-        print(f"{Fore.RED}{success_rate:.1f}% (Poor)")
+        print(f"{Fore.RED}{success_rate:.1f}% (Bad) ⭐")
     
-    print(f"{Fore.YELLOW}{'='*50}")
+    # Grade
+    print(f"\n{Fore.WHITE}🏆 GRADE: ", end="")
+    if stats['total_requests'] > 0 and stats['error'] == 0 and stats['timeout'] == 0:
+        print(f"{Fore.GREEN}A+ (Perfect - No errors!)")
+    elif success_rate >= 95 and stats['timeout'] < 10:
+        print(f"{Fore.GREEN}A (Excellent)")
+    elif success_rate >= 80:
+        print(f"{Fore.LIGHTGREEN_EX}B (Good)")
+    elif success_rate >= 60:
+        print(f"{Fore.YELLOW}C (Fair)")
+    else:
+        print(f"{Fore.RED}D (Poor - Check server configuration)")
+    
+    print(f"\n{Fore.CYAN}{'═'*70}")
     print(f"{Fore.LIGHTBLACK_EX}Test completed at {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
     print(f"{Fore.LIGHTBLACK_EX}HAQTIVIST - For Ethical Testing Only")
 
+def interactive_mode():
+    """Mode interaktif - input manual"""
+    print(f"{Fore.CYAN}┌{'─'*68}┐")
+    print(f"{Fore.CYAN}│{Fore.YELLOW} INTERACTIVE MODE{Fore.CYAN} {' ' * 52}│")
+    print(f"{Fore.CYAN}└{'─'*68}┘\n")
+    
+    target = input(f"{Fore.WHITE}Target IP/Domain {Fore.YELLOW}[localhost]{Fore.WHITE}: ") or "localhost"
+    port = input(f"{Fore.WHITE}Port {Fore.YELLOW}[8080]{Fore.WHITE}: ") or "8080"
+    port = int(port)
+    
+    method = input(f"{Fore.WHITE}HTTP Method {Fore.YELLOW}[GET]{Fore.WHITE}: ") or "GET"
+    method = method.upper()
+    
+    endpoint = input(f"{Fore.WHITE}Endpoint {Fore.YELLOW}[/]{Fore.WHITE}: ") or "/"
+    
+    threads = input(f"{Fore.WHITE}Threads {Fore.YELLOW}[10]{Fore.WHITE}: ") or "10"
+    threads = int(threads)
+    
+    duration = input(f"{Fore.WHITE}Duration (seconds) {Fore.YELLOW}[10]{Fore.WHITE}: ") or "10"
+    duration = int(duration)
+    
+    delay = input(f"{Fore.WHITE}Delay between requests (seconds) {Fore.YELLOW}[0]{Fore.WHITE}: ") or "0"
+    delay = float(delay.replace(',', '.'))
+    
+    save = input(f"{Fore.WHITE}Save report to JSON? {Fore.YELLOW}[y/N]{Fore.WHITE}: ").lower() == 'y'
+    
+    return target, port, method, endpoint, threads, duration, delay, save
+
 # ============ MAIN ============
 if __name__ == "__main__":
-    print_hologram_banner()
+    print_banner()
     
-    if len(sys.argv) < 5:
-        print(f"{Fore.YELLOW}Usage: python haqtivist.py <IP> <PORT> <THREADS> <DURATION_SEC> [METHOD] [DELAY]")
-        print(f"{Fore.CYAN}\nContoh:")
-        print(f"  python haqtivist.py localhost 8080 10 5")
-        print(f"  python haqtivist.py localhost 8080 50 10 POST")
-        print(f"  python haqtivist.py 192.168.1.1 80 20 30 GET 0.05")
-        print(f"\n{Fore.RED}PERINGATAN: Hanya untuk testing server milik sendiri!")
-        print(f"{Fore.RED}Penggunaan tanpa izin adalah tindakan ilegal!")
+    # Parse arguments atau interactive mode
+    if len(sys.argv) < 2:
+        print(f"{Fore.YELLOW}Usage: python haqtivist.py [OPTIONS]")
+        print(f"\n{Fore.CYAN}Options:")
+        print(f"  {Fore.WHITE}--help, -h{Fore.CYAN}               Show this help")
+        print(f"  {Fore.WHITE}--target <IP> -p <PORT>{Fore.CYAN}    Target specification")
+        print(f"  {Fore.WHITE}--threads <N>{Fore.CYAN}              Number of threads")
+        print(f"  {Fore.WHITE}--duration <S>{Fore.CYAN}             Test duration in seconds")
+        print(f"  {Fore.WHITE}--method <GET|POST>{Fore.CYAN}        HTTP method")
+        print(f"  {Fore.WHITE}--delay <N>{Fore.CYAN}                Delay between requests")
+        print(f"  {Fore.WHITE}--save{Fore.CYAN}                     Save report to JSON")
+        print(f"  {Fore.WHITE}--interactive, -i{Fore.CYAN}          Interactive mode")
+        print(f"\n{Fore.CYAN}Examples:")
+        print(f"  {Fore.WHITE}python haqtivist.py --interactive")
+        print(f"  {Fore.WHITE}python haqtivist.py --target localhost -p 8080 --threads 10 --duration 10")
+        print(f"  {Fore.WHITE}python haqtivist.py localhost 8080 10 10")
         sys.exit()
     
-    target = sys.argv[1]
-    port = int(sys.argv[2])
-    threads = int(sys.argv[3])
-    duration = int(sys.argv[4])
-    method = sys.argv[5].upper() if len(sys.argv) > 5 else "GET"
-    delay = float(sys.argv[6]) if len(sys.argv) > 6 else 0
+    # Default values
+    target = "localhost"
+    port = 8080
+    threads = 10
+    duration = 10
+    method = "GET"
+    delay = 0
+    endpoint = "/"
+    save_report_flag = False
+    payload = None
     
-    # Konfirmasi
-    print(f"{Fore.RED}[!] KONFIRMASI: Apakah Anda memiliki izin untuk testing ke {target}:{port}? (y/N): ", end="")
-    confirm = input().lower()
+    # Parse arguments
+    if "--interactive" in sys.argv or "-i" in sys.argv:
+        target, port, method, endpoint, threads, duration, delay, save_report_flag = interactive_mode()
+    elif len(sys.argv) >= 4 and sys.argv[1] != "--target":
+        # Short format: python haqtivist.py <IP> <PORT> <THREADS> <DURATION> [METHOD] [DELAY]
+        target = sys.argv[1]
+        port = int(sys.argv[2])
+        threads = int(sys.argv[3])
+        duration = int(sys.argv[4])
+        method = sys.argv[5].upper() if len(sys.argv) > 5 else "GET"
+        delay = float(sys.argv[6].replace(',', '.')) if len(sys.argv) > 6 else 0
+    else:
+        # Long format with --target
+        for i, arg in enumerate(sys.argv):
+            if arg == "--target" and i+1 < len(sys.argv):
+                target = sys.argv[i+1]
+            elif arg == "-p" and i+1 < len(sys.argv):
+                port = int(sys.argv[i+1])
+            elif arg == "--threads" and i+1 < len(sys.argv):
+                threads = int(sys.argv[i+1])
+            elif arg == "--duration" and i+1 < len(sys.argv):
+                duration = int(sys.argv[i+1])
+            elif arg == "--method" and i+1 < len(sys.argv):
+                method = sys.argv[i+1].upper()
+            elif arg == "--delay" and i+1 < len(sys.argv):
+                delay = float(sys.argv[i+1].replace(',', '.'))
+            elif arg == "--save":
+                save_report_flag = True
+            elif arg == "--help" or arg == "-h":
+                print(f"{Fore.CYAN}HAQTIVIST HTTP TESTER - Help")
+                sys.exit()
     
-    if confirm != 'y':
-        print(f"{Fore.RED}Dibatalkan. Testing hanya boleh dilakukan dengan izin pemilik server!")
-        sys.exit()
+    # Konfirmasi untuk non-localhost
+    if target != "localhost" and target != "127.0.0.1":
+        print(f"{Fore.RED}[!] PERINGATAN: Target '{target}' bukan localhost!")
+        print(f"{Fore.RED}[!] Hanya testing server milik sendiri yang diizinkan!")
+        confirm = input(f"{Fore.YELLOW}Apakah Anda memiliki izin tertulis untuk testing? (y/N): ").lower()
+        if confirm != 'y':
+            print(f"{Fore.RED}Testing dibatalkan.")
+            sys.exit()
     
-    start_time = time.time()
-    attack_mode(target, port, "/", duration, threads, method, delay)
-    show_final_report(start_time)
+    # Jalankan test
+    attack_mode(target, port, endpoint, duration, threads, method, delay, payload)
+    show_final_report()
+    
+    # Save report jika diminta
+    if save_report_flag:
+        save_report()
+```
