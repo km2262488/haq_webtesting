@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-HAQTIVIST HTTP TESTER
+HAQTIVIST TOOL 
 """
 
 import socket
@@ -55,6 +55,35 @@ def get_random_headers(target):
         "Accept-Language": "id-ID,id;q=0.9",
         "Connection": "close"
     }
+
+def save_report(filename="haqtivist_report.json"):
+    elapsed = (stats['end_time'] - stats['start_time']) if stats['end_time'] and stats['start_time'] else 0
+    report = {
+        "tool": "HAQTIVIST HTTP TESTER",
+        "version": "3.0",
+        "timestamp": datetime.now().isoformat(),
+        "url_tested": stats['url_tested'],
+        "stats": {
+            'success': stats['success'],
+            'success_2xx': stats['success_2xx'],
+            'redirect_3xx': stats['redirect_3xx'],
+            'client_error_4xx': stats['client_error_4xx'],
+            'server_error_5xx': stats['server_error_5xx'],
+            'timeout': stats['timeout'],
+            'error': stats['error'],
+            'total_requests': stats['total_requests'],
+            'bytes_transferred': stats['bytes_transferred']
+        },
+        "performance": {
+            "duration": elapsed,
+            "avg_response_time_ms": (sum(stats['response_times']) / len(stats['response_times']) * 1000) if stats['response_times'] else 0,
+            "rps": stats['total_requests'] / elapsed if elapsed > 0 else 0
+        }
+    }
+    
+    with open(filename, 'w') as f:
+        json.dump(report, f, indent=2)
+    print(f"{Fore.GREEN}[+] Report saved to {filename}")
 
 def test_request(target, port, endpoint="/", method="GET", delay=0, payload=None):
     global stats
@@ -147,7 +176,7 @@ def attack_mode(target, port, endpoint, duration, threads, method="GET", delay=0
     print(f"   {Fore.LIGHTBLACK_EX}└─ Delay:      {Fore.LIGHTWHITE_EX}{delay} detik")
     print(f"{Fore.CYAN}{'='*70}")
     
-    print(f"\n{Fore.YELLOW}[!] PERINGATAN: Bismillah dulu baru tekan enter!")
+    print(f"\n{Fore.YELLOW}[!] PERINGATAN: Bismillah dulu baru klik enter")
     print(f"{Fore.LIGHTBLACK_EX}[*] Memulai testing... Tekan Ctrl+C untuk berhenti\n")
     
     # Header Live Stats
@@ -167,23 +196,22 @@ def attack_mode(target, port, endpoint, duration, threads, method="GET", delay=0
             t.start()
             thread_list.append(t)
         
-# Hentikan tepat waktu, jangan menunggu response selesai
-while time.time() - start_time < duration:
-    if stop_flag.is_set():
-        break
-    time.sleep(0.1)
-    
-# Setelah duration habis, langsung stop
-stop_flag.set()
+        # LIVE STATS UPDATE REAL TIME
+        while any(t.is_alive() for t in thread_list):
+            time.sleep(0.3)
+            elapsed = time.time() - start_time
+            
+            # Hentikan tepat waktu
+            if elapsed >= duration:
+                stop_flag.set()
                 break
             
-            # Update display setiap loop
+            # Update display
             with lock:
                 current_requests = stats['total_requests']
                 rps = current_requests / elapsed if elapsed > 0 else 0
                 active = len([t for t in thread_list if t.is_alive()])
                 
-                # Format output
                 sys.stdout.write(f"\r\033[K")
                 sys.stdout.write(
                     f"\r{Fore.CYAN}{elapsed:6.1f}s   │ "
@@ -195,6 +223,10 @@ stop_flag.set()
                 sys.stdout.flush()
         
         print(f"\n{Fore.LIGHTBLACK_EX}{'─'*70}")
+        
+        # Beri waktu sedikit untuk thread selesai
+        time.sleep(0.5)
+        stop_flag.set()
         
         for t in thread_list:
             t.join(timeout=1)
@@ -242,6 +274,7 @@ def show_final_report():
         print(f"{Fore.YELLOW}{success_rate:.1f}% (Average)")
     
     print(f"\n{Fore.CYAN}{'='*70}")
+    print(f"{Fore.LIGHTBLACK_EX}Test completed at {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
 
 def parse_url(url):
     if not url.startswith(('http://', 'https://')):
@@ -252,28 +285,59 @@ def parse_url(url):
     endpoint = parsed.path if parsed.path else '/'
     return target, port, endpoint
 
+def show_help():
+    print(f"""
+{Fore.CYAN}HAQTIVIST HTTP TESTER v3.0
+
+{Fore.YELLOW}Cara Penggunaan:{Fore.WHITE}
+  python haqtivist.py --url http://localhost:8080 --threads 5 --duration 10
+
+{Fore.YELLOW}Parameter:{Fore.WHITE}
+  --url <URL>     Target URL (contoh: http://localhost:8080)
+  --threads <N>   Jumlah thread concurrent (default: 5)
+  --duration <S>  Durasi testing dalam detik (default: 10)
+  --method <M>    HTTP method GET/POST (default: GET)
+  --delay <D>     Delay antar request dalam detik (default: 0)
+
+{Fore.YELLOW}Contoh:{Fore.WHITE}
+  python haqtivist.py --url http://localhost:8080 --threads 10 --duration 10
+  python haqtivist.py --url http://localhost:8080 --threads 5 --duration 30 --delay 0.2
+    """)
+
 if __name__ == "__main__":
     if len(sys.argv) < 2:
-        print("Usage: python haqtivist.py --url http://localhost:8080 --threads 10 --duration 10")
+        show_help()
         sys.exit()
     
     url = None
-    threads = 10
+    threads = 5
     duration = 10
     method = "GET"
     delay = 0
     
-    for i, arg in enumerate(sys.argv):
-        if arg == "--url" and i+1 < len(sys.argv):
+    i = 1
+    while i < len(sys.argv):
+        arg = sys.argv[i]
+        if arg in ["--help", "-h"]:
+            show_help()
+            sys.exit()
+        elif arg == "--url" and i+1 < len(sys.argv):
             url = sys.argv[i+1]
+            i += 2
         elif arg == "--threads" and i+1 < len(sys.argv):
             threads = int(sys.argv[i+1])
+            i += 2
         elif arg == "--duration" and i+1 < len(sys.argv):
             duration = int(sys.argv[i+1])
+            i += 2
         elif arg == "--method" and i+1 < len(sys.argv):
             method = sys.argv[i+1].upper()
+            i += 2
         elif arg == "--delay" and i+1 < len(sys.argv):
             delay = float(sys.argv[i+1].replace(',', '.'))
+            i += 2
+        else:
+            i += 1
     
     if url:
         target, port, endpoint = parse_url(url)
@@ -281,4 +345,5 @@ if __name__ == "__main__":
         attack_mode(target, port, endpoint, duration, threads, method, delay)
         show_final_report()
     else:
-        print("Error: Harus menggunakan --url")
+        print(f"{Fore.RED}[!] Error: Harus menggunakan --url")
+        show_help()
