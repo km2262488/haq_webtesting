@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
-HAQTIVIST HTTP TESTER v3.0
-Ethical Security Testing Tool - Untuk Server Milik Sendiri
+HAQTIVIST HTTP TESTER 
+Ethical Security Testing Tool
 """
 
 import socket
@@ -45,35 +45,37 @@ POST_PAYLOADS = [
     "------WebKitFormBoundary\r\nContent-Disposition: form-data; name=\"file\"\r\n\r\ntest\r\n------WebKitFormBoundary--"
 ]
 
-# Header tambahan untuk berbagai testing
-CUSTOM_HEADERS = {
-    "X-Forwarded-For": "127.0.0.1",
-    "X-Original-URL": "/admin",
-    "X-Rewrite-URL": "/admin",
-    "X-HTTP-Method-Override": "PUT",
-    "X-Custom-IP": "192.168.1.1"
-}
-
 # ============ FITUR PARSING URL ============
 
 def parse_url(url):
     """Parse URL dan ekstrak target, port, endpoint"""
+    original_url = url
+    is_https = False
+    
     if not url.startswith(('http://', 'https://')):
         url = 'http://' + url
     
     parsed = urlparse(url)
     target = parsed.hostname
-    port = parsed.port if parsed.port else (443 if parsed.scheme == 'https' else 80)
+    scheme = parsed.scheme
+    
+    # Deteksi HTTPS
+    if scheme == 'https':
+        is_https = True
+        # HTTPS tidak support, ubah ke HTTP
+        port = parsed.port if parsed.port else 80  # Ganti ke port 80
+        print(f"{Fore.RED}[!] PERINGATAN: HTTPS (port 443) TIDAK DIDUKUNG!")
+        print(f"{Fore.YELLOW}[!] Menggunakan HTTP ke port {port} sebagai gantinya")
+        print(f"{Fore.YELLOW}[!] URL asli: {original_url}")
+        print(f"{Fore.YELLOW}[!] URL test: http://{target}:{port}{parsed.path}")
+    else:
+        port = parsed.port if parsed.port else 80
+    
     endpoint = parsed.path if parsed.path else '/'
     if parsed.query:
         endpoint += '?' + parsed.query
     
-    # Peringatan untuk HTTPS (tidak support)
-    if parsed.scheme == 'https':
-        print(f"{Fore.RED}[!] PERINGATAN: HTTPS tidak didukung! Gunakan HTTP.")
-        print(f"{Fore.YELLOW}[!] Akan menggunakan HTTP ke port {port}")
-    
-    return target, port, endpoint, parsed.scheme
+    return target, port, endpoint, is_https
 
 def parse_url_file(filename):
     """Baca daftar URL dari file"""
@@ -99,7 +101,6 @@ def generate_user_agent():
         "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36",
         "Mozilla/5.0 (iPhone; CPU iPhone OS 14_0 like Mac OS X)",
         "Mozilla/5.0 (Windows NT 10.0; rv:109.0) Gecko/20100101 Firefox/121.0",
-        "Mozilla/5.0 (Linux; Android 13; SM-G998B) AppleWebKit/537.36"
     ]
     return random.choice(agents)
 
@@ -110,17 +111,8 @@ def get_random_headers(target):
         "Accept-Language": random.choice(["id-ID,id;q=0.9", "en-US,en;q=0.8", "ms-MY,ms;q=0.9"]),
         "Accept-Encoding": "gzip, deflate",
         "Cache-Control": random.choice(["no-cache", "max-age=0", "no-store"]),
-        "Origin": f"http://{target}",
-        "Referer": f"http://{target}/",
-        "DNT": "1",
         "Connection": "close"
     }
-    
-    # Tambahkan custom headers random
-    if random.random() < 0.3:
-        header_key = random.choice(list(CUSTOM_HEADERS.keys()))
-        headers[header_key] = CUSTOM_HEADERS[header_key]
-    
     return headers
 
 # ============ FITUR REPORT ============
@@ -155,27 +147,6 @@ def save_report(filename="haqtivist_report.json"):
         json.dump(report, f, indent=2)
     print(f"{Fore.GREEN}[+] Report saved to {filename}")
 
-def save_csv_report(filename="haqtivist_report.csv"):
-    """Simpan hasil test ke file CSV"""
-    elapsed = (stats['end_time'] - stats['start_time']) if stats['end_time'] and stats['start_time'] else 0
-    with open(filename, 'w') as f:
-        f.write("Metric,Value\n")
-        f.write(f"URL Tested,{stats['url_tested']}\n")
-        f.write(f"Timestamp,{datetime.now().isoformat()}\n")
-        f.write(f"Total Requests,{stats['total_requests']}\n")
-        f.write(f"Success (2xx),{stats['success_2xx']}\n")
-        f.write(f"Redirect (3xx),{stats['redirect_3xx']}\n")
-        f.write(f"Client Error (4xx),{stats['client_error_4xx']}\n")
-        f.write(f"Server Error (5xx),{stats['server_error_5xx']}\n")
-        f.write(f"Timeout,{stats['timeout']}\n")
-        f.write(f"Socket Error,{stats['error']}\n")
-        f.write(f"Duration (s),{elapsed:.2f}\n")
-        f.write(f"RPS,{stats['total_requests']/elapsed:.1f}\n")
-        f.write(f"Total Transfer (MB),{stats['bytes_transferred']/1024/1024:.2f}\n")
-        if stats['response_times']:
-            f.write(f"Avg Response Time (ms),{sum(stats['response_times']) / len(stats['response_times']) * 1000:.1f}\n")
-    print(f"{Fore.GREEN}[+] CSV Report saved to {filename}")
-
 # ============ FITUR TESTING ============
 
 def live_stats_display(threads_active, elapsed, rps, target, port):
@@ -193,7 +164,7 @@ def live_stats_display(threads_active, elapsed, rps, target, port):
         sys.stdout.write(status_line + Style.RESET_ALL)
         sys.stdout.flush()
 
-def test_request(target, port, endpoint="/", method="GET", delay=0, payload=None, custom_headers=None):
+def test_request(target, port, endpoint="/", method="GET", delay=0, payload=None):
     """HTTP Request dengan berbagai fitur"""
     global stats
     start_time = time.time()
@@ -221,7 +192,7 @@ def test_request(target, port, endpoint="/", method="GET", delay=0, payload=None
             request_line = f"{method} {endpoint} HTTP/1.1\r\n"
         
         # Headers
-        headers = custom_headers if custom_headers else get_random_headers(target)
+        headers = get_random_headers(target)
         request = request_line
         request += f"Host: {target}\r\n"
         request += f"User-Agent: {generate_user_agent()}\r\n"
@@ -303,13 +274,13 @@ def test_request(target, port, endpoint="/", method="GET", delay=0, payload=None
             except:
                 pass
 
-def worker(target, port, endpoint, method, duration, delay, payload=None, custom_headers=None):
+def worker(target, port, endpoint, method, duration, delay, payload=None):
     """Worker thread"""
     start_time = time.time()
     request_count = 0
     
     while not stop_flag.is_set() and (time.time() - start_time) < duration:
-        test_request(target, port, endpoint, method, delay, payload, custom_headers)
+        test_request(target, port, endpoint, method, delay, payload)
         request_count += 1
         
         if delay > 0:
@@ -317,19 +288,19 @@ def worker(target, port, endpoint, method, duration, delay, payload=None, custom
         elif stats['error'] > 100 and request_count % 100 == 0:
             time.sleep(0.1)
 
-def attack_mode(target, port, endpoint, duration, threads, method="GET", delay=0, payload=None, custom_headers=None):
+def attack_mode(target, port, endpoint, duration, threads, method="GET", delay=0, payload=None):
     """Mode testing utama"""
     stats['url_tested'] = f"http://{target}:{port}{endpoint}"
     
-    print(f"\n{Fore.CYAN}{'='*80}")
+    print(f"\n{Fore.CYAN}{'='*70}")
     print(f"{Fore.YELLOW}🎯 TARGET: {Fore.WHITE}{stats['url_tested']}")
-    print(f"{Fore.CYAN}{'='*80}")
+    print(f"{Fore.CYAN}{'='*70}")
     print(f"{Fore.WHITE}📋 Konfigurasi Test:")
     print(f"   {Fore.LIGHTBLACK_EX}├─ Method:     {Fore.LIGHTWHITE_EX}{method}")
     print(f"   {Fore.LIGHTBLACK_EX}├─ Threads:    {Fore.LIGHTWHITE_EX}{threads}")
     print(f"   {Fore.LIGHTBLACK_EX}├─ Duration:   {Fore.LIGHTWHITE_EX}{duration} detik")
     print(f"   {Fore.LIGHTBLACK_EX}└─ Delay:      {Fore.LIGHTWHITE_EX}{delay} detik")
-    print(f"{Fore.CYAN}{'='*80}")
+    print(f"{Fore.CYAN}{'='*70}")
     
     print(f"\n{Fore.YELLOW}[!] PERINGATAN: Hanya untuk server milik sendiri!")
     print(f"{Fore.LIGHTBLACK_EX}[*] Memulai testing... Tekan Ctrl+C untuk berhenti\n")
@@ -341,7 +312,7 @@ def attack_mode(target, port, endpoint, duration, threads, method="GET", delay=0
     
     try:
         for _ in range(threads):
-            t = threading.Thread(target=worker, args=(target, port, endpoint, method, duration, delay, payload, custom_headers))
+            t = threading.Thread(target=worker, args=(target, port, endpoint, method, duration, delay, payload))
             t.daemon = True
             t.start()
             thread_list.append(t)
@@ -379,9 +350,9 @@ def show_final_report():
     elapsed = stats['end_time'] - stats['start_time'] if stats['end_time'] and stats['start_time'] else 0
     success_rate = (stats['success'] / stats['total_requests'] * 100) if stats['total_requests'] > 0 else 0
     
-    print(f"\n\n{Fore.CYAN}{'='*80}")
+    print(f"\n\n{Fore.CYAN}{'='*70}")
     print(f"{Fore.YELLOW}📊 HASIL AKHIR HAQTIVIST HTTP TESTER")
-    print(f"{Fore.CYAN}{'='*80}")
+    print(f"{Fore.CYAN}{'='*70}")
     
     print(f"\n{Fore.WHITE}📈 STATISTIK REQUEST:")
     print(f"  {Fore.GREEN}✓ 2xx Success:     {stats['success_2xx']}")
@@ -420,7 +391,7 @@ def show_final_report():
     else:
         print(f"{Fore.RED}{success_rate:.1f}% (Bad) ⭐")
     
-    print(f"\n{Fore.CYAN}{'='*80}")
+    print(f"\n{Fore.CYAN}{'='*70}")
     print(f"{Fore.LIGHTBLACK_EX}Test completed at {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
     print(f"{Fore.LIGHTBLACK_EX}HAQTIVIST - For Ethical Testing Only")
 
@@ -428,33 +399,40 @@ def show_final_report():
 
 def test_single_url(url, threads, duration, delay=0, method="GET"):
     """Test single URL"""
-    target, port, endpoint, scheme = parse_url(url)
+    target, port, endpoint, is_https = parse_url(url)
     
-    if scheme == 'https':
-        print(f"{Fore.RED}[!] HTTPS tidak didukung! Gunakan HTTP.")
-        return
+    if is_https:
+        print(f"{Fore.YELLOW}[!] Melanjutkan testing dengan HTTP (port {port})")
+        print(f"{Fore.YELLOW}[!] Pastikan server HTTP berjalan di port tersebut\n")
     
-    print(f"\n{Fore.GREEN}[+] Memproses URL: {url}")
     attack_mode(target, port, endpoint, duration, threads, method, delay)
     show_final_report()
 
 def test_multiple_urls(urls, threads, duration, delay=0, method="GET"):
     """Test multiple URLs"""
-    print(f"\n{Fore.CYAN}{'='*80}")
+    print(f"\n{Fore.CYAN}{'='*70}")
     print(f"{Fore.YELLOW}📋 Multi-URL Testing Mode")
-    print(f"{Fore.CYAN}{'='*80}")
+    print(f"{Fore.CYAN}{'='*70}")
     print(f"{Fore.WHITE}Total URL yang akan di test: {len(urls)}")
+    
+    https_count = 0
+    for url in urls:
+        if url.startswith('https://'):
+            https_count += 1
+    
+    if https_count > 0:
+        print(f"{Fore.YELLOW}[!] Terdapat {https_count} URL HTTPS yang akan dikonversi ke HTTP")
+        print(f"{Fore.YELLOW}[!] Pastikan server HTTP berjalan di port yang sesuai\n")
     
     for i, url in enumerate(urls, 1):
         print(f"\n{Fore.LIGHTBLACK_EX}{'─'*40}")
         print(f"{Fore.GREEN}[{i}/{len(urls)}] Testing: {url}")
         print(f"{Fore.LIGHTBLACK_EX}{'─'*40}")
         
-        target, port, endpoint, scheme = parse_url(url)
+        target, port, endpoint, is_https = parse_url(url)
         
-        if scheme == 'https':
-            print(f"{Fore.RED}[!] HTTPS tidak didukung! Skip: {url}")
-            continue
+        if is_https:
+            print(f"{Fore.YELLOW}[!] Konversi HTTPS -> HTTP, menggunakan port {port}")
         
         # Reset stats untuk setiap URL
         for key in stats:
@@ -476,12 +454,12 @@ def test_multiple_urls(urls, threads, duration, delay=0, method="GET"):
 
 def interactive_mode():
     """Mode interaktif - input manual"""
-    print(f"\n{Fore.CYAN}{'='*80}")
+    print(f"\n{Fore.CYAN}{'='*70}")
     print(f"{Fore.YELLOW}🎮 INTERACTIVE MODE - HTTP TESTER")
-    print(f"{Fore.CYAN}{'='*80}\n")
+    print(f"{Fore.CYAN}{'='*70}\n")
     
     print(f"{Fore.WHITE}Pilih mode test:")
-    print(f"  {Fore.CYAN}[1] {Fore.WHITE}Single URL")
+    print(f"  {Fore.CYAN}[1] {Fore.WHITE}Single URL (otomatis parsing)")
     print(f"  {Fore.CYAN}[2] {Fore.WHITE}Multiple URL (dari file)")
     print(f"  {Fore.CYAN}[3] {Fore.WHITE}Custom target (IP/Host + Port)")
     
@@ -500,7 +478,6 @@ def interactive_mode():
         
         if save:
             save_report()
-            save_csv_report()
     
     elif choice == '2':
         filename = input(f"{Fore.WHITE}File URL list {Fore.YELLOW}[urls.txt]{Fore.WHITE}: ") or "urls.txt"
@@ -532,7 +509,6 @@ def interactive_mode():
         
         if save:
             save_report()
-            save_csv_report()
 
 # ============ MAIN ============
 def show_help():
@@ -542,9 +518,8 @@ def show_help():
 
 {Fore.YELLOW}📌 Mode URL (Single):
 {Fore.WHITE}  python haqtivist.py --url http://localhost:8080 --threads 10 --duration 10
-
-{Fore.YELLOW}📌 Mode URL dengan Method POST:
-{Fore.WHITE}  python haqtivist.py --url http://localhost:8080/api --method POST --threads 5 --duration 10
+  python haqtivist.py --url https://example.com --threads 5 --duration 5
+  {Fore.LIGHTBLACK_EX}(URL HTTPS akan otomatis dikonversi ke HTTP)
 
 {Fore.YELLOW}📌 Mode Multi-URL (dari file):
 {Fore.WHITE}  python haqtivist.py --urls urls.txt --threads 10 --duration 5
@@ -558,12 +533,9 @@ def show_help():
 {Fore.YELLOW}📌 Simpan Report:
 {Fore.WHITE}  python haqtivist.py --url http://localhost:8080 --save
 
-{Fore.YELLOW}📌 File URL (urls.txt) format:
-{Fore.WHITE}  http://localhost:8080
-  http://192.168.1.100:8080/api
-  http://example.com
-
-{Fore.YELLOW}⚠️  Peringatan: Hanya untuk testing server milik sendiri!
+{Fore.YELLOW}⚠️  Peringatan: 
+   - HTTPS tidak didukung, akan dikonversi ke HTTP
+   - Pastikan server HTTP berjalan di port yang dituju
     """)
 
 if __name__ == "__main__":
@@ -622,9 +594,8 @@ if __name__ == "__main__":
             save_flag = True
             i += 1
         else:
-            # Coba parse sebagai URL atau target langsung
             if not url and not target:
-                if sys.argv[i].startswith(('http://', 'https://')) or '/' in sys.argv[i]:
+                if sys.argv[i].startswith(('http://', 'https://')) or '/' in sys.argv[i] or '.' in sys.argv[i]:
                     url = sys.argv[i]
                 else:
                     target = sys.argv[i]
@@ -632,8 +603,6 @@ if __name__ == "__main__":
     
     # Konfirmasi untuk non-localhost
     if target and target not in ["localhost", "127.0.0.1"]:
-        print(f"{Fore.RED}[!] PERINGATAN: Target '{target}' bukan localhost!")
-        print(f"{Fore.RED}[!] Hanya testing server milik sendiri yang diizinkan!")
         confirm = input(f"{Fore.YELLOW}Apakah Anda memiliki izin tertulis untuk testing? (y/N): ").lower()
         if confirm != 'y':
             print(f"{Fore.RED}Testing dibatalkan.")
@@ -645,18 +614,14 @@ if __name__ == "__main__":
         test_single_url(url, threads, duration, delay, method)
         if save_flag:
             save_report()
-            save_csv_report()
     elif urls_file:
         urls = parse_url_file(urls_file)
         if urls:
             test_multiple_urls(urls, threads, duration, delay, method)
-            if save_flag:
-                save_report()
     elif target and port:
         attack_mode(target, port, endpoint, duration, threads, method, delay)
         show_final_report()
         if save_flag:
             save_report()
-            save_csv_report()
     else:
         show_help()
