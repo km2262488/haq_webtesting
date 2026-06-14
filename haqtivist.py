@@ -10,33 +10,12 @@ import time
 import sys
 import random
 import json
+import re
 from datetime import datetime
+from urllib.parse import urlparse
 from colorama import init, Fore, Style
 
 init(autoreset=True)
-
-# ============ BANNER HAQTIVIST (TULISAN BENAR) ============
-def print_banner():
-    banner = f"""
-{Fore.YELLOW}╔═══════════════════════════════════════════════════════════════════════════════╗
-{Fore.YELLOW}║                                                                               ║
-{Fore.YELLOW}║     {Fore.LIGHTYELLOW_EX}██████╗  █████╗  ██████╗ ████████╗██╗██╗   ██╗██╗███████╗████████╗{Fore.YELLOW}     ║
-{Fore.YELLOW}║     {Fore.LIGHTYELLOW_EX}██╔══██╗██╔══██╗██╔═══██╗╚══██╔══╝██║██║   ██║██║██╔════╝╚══██╔══╝{Fore.YELLOW}     ║
-{Fore.YELLOW}║     {Fore.LIGHTYELLOW_EX}██████╔╝███████║██║   ██║   ██║   ██║██║   ██║██║█████╗     ██║   {Fore.YELLOW}     ║
-{Fore.YELLOW}║     {Fore.LIGHTYELLOW_EX}██╔═══╝ ██╔══██║██║▄▄ ██║   ██║   ██║╚██╗ ██╔╝██║██╔══╝     ██║   {Fore.YELLOW}     ║
-{Fore.YELLOW}║     {Fore.LIGHTYELLOW_EX}██║     ██║  ██║╚██████╔╝   ██║   ██║ ╚████╔╝ ██║███████╗   ██║   {Fore.YELLOW}     ║
-{Fore.YELLOW}║     {Fore.LIGHTYELLOW_EX}╚═╝     ╚═╝  ╚═╝ ╚══▀▀═╝    ╚═╝   ╚═╝  ╚═══╝  ╚═╝╚══════╝   ╚═╝   {Fore.YELLOW}     ║
-{Fore.YELLOW}║                                                                               ║
-{Fore.YELLOW}║                         {Fore.LIGHTYELLOW_EX}H A Q T I V I S T{Fore.YELLOW}                                   ║
-{Fore.YELLOW}║                      {Fore.WHITE}HTTP Performance Testing Tool{Fore.YELLOW}                           ║
-{Fore.YELLOW}║                         {Fore.LIGHTBLACK_EX}For Ethical Use Only{Fore.YELLOW}                               ║
-{Fore.YELLOW}║                                                                               ║
-{Fore.YELLOW}╚═══════════════════════════════════════════════════════════════════════════════╝{Style.RESET_ALL}
-"""
-    print(banner)
-    print(f"{Fore.LIGHTBLACK_EX}[+] Started at: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
-    print(f"{Fore.LIGHTBLACK_EX}[+] Mode: Ethical Testing Only - Server Milik Sendiri")
-    print(f"{Fore.YELLOW}{'='*80}{Style.RESET_ALL}\n")
 
 # ============ KONFIGURASI ============
 stats = {
@@ -51,7 +30,8 @@ stats = {
     'bytes_transferred': 0,
     'response_times': [],
     'start_time': None,
-    'end_time': None
+    'end_time': None,
+    'url_tested': None
 }
 
 lock = threading.Lock()
@@ -65,6 +45,52 @@ POST_PAYLOADS = [
     "------WebKitFormBoundary\r\nContent-Disposition: form-data; name=\"file\"\r\n\r\ntest\r\n------WebKitFormBoundary--"
 ]
 
+# Header tambahan untuk berbagai testing
+CUSTOM_HEADERS = {
+    "X-Forwarded-For": "127.0.0.1",
+    "X-Original-URL": "/admin",
+    "X-Rewrite-URL": "/admin",
+    "X-HTTP-Method-Override": "PUT",
+    "X-Custom-IP": "192.168.1.1"
+}
+
+# ============ FITUR PARSING URL ============
+
+def parse_url(url):
+    """Parse URL dan ekstrak target, port, endpoint"""
+    if not url.startswith(('http://', 'https://')):
+        url = 'http://' + url
+    
+    parsed = urlparse(url)
+    target = parsed.hostname
+    port = parsed.port if parsed.port else (443 if parsed.scheme == 'https' else 80)
+    endpoint = parsed.path if parsed.path else '/'
+    if parsed.query:
+        endpoint += '?' + parsed.query
+    
+    # Peringatan untuk HTTPS (tidak support)
+    if parsed.scheme == 'https':
+        print(f"{Fore.RED}[!] PERINGATAN: HTTPS tidak didukung! Gunakan HTTP.")
+        print(f"{Fore.YELLOW}[!] Akan menggunakan HTTP ke port {port}")
+    
+    return target, port, endpoint, parsed.scheme
+
+def parse_url_file(filename):
+    """Baca daftar URL dari file"""
+    urls = []
+    try:
+        with open(filename, 'r') as f:
+            for line in f:
+                line = line.strip()
+                if line and not line.startswith('#'):
+                    urls.append(line)
+    except FileNotFoundError:
+        print(f"{Fore.RED}[!] File {filename} tidak ditemukan!")
+        return []
+    return urls
+
+# ============ FITUR GENERATE ============
+
 def generate_user_agent():
     """Random User-Agent"""
     agents = [
@@ -72,7 +98,8 @@ def generate_user_agent():
         "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36",
         "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36",
         "Mozilla/5.0 (iPhone; CPU iPhone OS 14_0 like Mac OS X)",
-        "Mozilla/5.0 (Windows NT 10.0; rv:109.0) Gecko/20100101 Firefox/121.0"
+        "Mozilla/5.0 (Windows NT 10.0; rv:109.0) Gecko/20100101 Firefox/121.0",
+        "Mozilla/5.0 (Linux; Android 13; SM-G998B) AppleWebKit/537.36"
     ]
     return random.choice(agents)
 
@@ -86,9 +113,17 @@ def get_random_headers(target):
         "Origin": f"http://{target}",
         "Referer": f"http://{target}/",
         "DNT": "1",
-        "X-Forwarded-For": f"{random.randint(1,255)}.{random.randint(1,255)}.{random.randint(1,255)}.{random.randint(1,255)}"
+        "Connection": "close"
     }
+    
+    # Tambahkan custom headers random
+    if random.random() < 0.3:
+        header_key = random.choice(list(CUSTOM_HEADERS.keys()))
+        headers[header_key] = CUSTOM_HEADERS[header_key]
+    
     return headers
+
+# ============ FITUR REPORT ============
 
 def save_report(filename="haqtivist_report.json"):
     """Simpan hasil test ke file JSON"""
@@ -97,6 +132,7 @@ def save_report(filename="haqtivist_report.json"):
         "tool": "HAQTIVIST HTTP TESTER",
         "version": "3.0",
         "timestamp": datetime.now().isoformat(),
+        "url_tested": stats['url_tested'],
         "stats": {
             'success': stats['success'],
             'success_2xx': stats['success_2xx'],
@@ -119,6 +155,29 @@ def save_report(filename="haqtivist_report.json"):
         json.dump(report, f, indent=2)
     print(f"{Fore.GREEN}[+] Report saved to {filename}")
 
+def save_csv_report(filename="haqtivist_report.csv"):
+    """Simpan hasil test ke file CSV"""
+    elapsed = (stats['end_time'] - stats['start_time']) if stats['end_time'] and stats['start_time'] else 0
+    with open(filename, 'w') as f:
+        f.write("Metric,Value\n")
+        f.write(f"URL Tested,{stats['url_tested']}\n")
+        f.write(f"Timestamp,{datetime.now().isoformat()}\n")
+        f.write(f"Total Requests,{stats['total_requests']}\n")
+        f.write(f"Success (2xx),{stats['success_2xx']}\n")
+        f.write(f"Redirect (3xx),{stats['redirect_3xx']}\n")
+        f.write(f"Client Error (4xx),{stats['client_error_4xx']}\n")
+        f.write(f"Server Error (5xx),{stats['server_error_5xx']}\n")
+        f.write(f"Timeout,{stats['timeout']}\n")
+        f.write(f"Socket Error,{stats['error']}\n")
+        f.write(f"Duration (s),{elapsed:.2f}\n")
+        f.write(f"RPS,{stats['total_requests']/elapsed:.1f}\n")
+        f.write(f"Total Transfer (MB),{stats['bytes_transferred']/1024/1024:.2f}\n")
+        if stats['response_times']:
+            f.write(f"Avg Response Time (ms),{sum(stats['response_times']) / len(stats['response_times']) * 1000:.1f}\n")
+    print(f"{Fore.GREEN}[+] CSV Report saved to {filename}")
+
+# ============ FITUR TESTING ============
+
 def live_stats_display(threads_active, elapsed, rps, target, port):
     """Tampilan statistik real-time"""
     with lock:
@@ -134,7 +193,7 @@ def live_stats_display(threads_active, elapsed, rps, target, port):
         sys.stdout.write(status_line + Style.RESET_ALL)
         sys.stdout.flush()
 
-def test_request(target, port, endpoint="/", method="GET", delay=0, payload=None):
+def test_request(target, port, endpoint="/", method="GET", delay=0, payload=None, custom_headers=None):
     """HTTP Request dengan berbagai fitur"""
     global stats
     start_time = time.time()
@@ -145,10 +204,15 @@ def test_request(target, port, endpoint="/", method="GET", delay=0, payload=None
         s.settimeout(5)
         s.connect((target, port))
         
+        # Generate parameter random
         random_param = f"?_={int(time.time())}&r={random.randint(1000,9999)}"
         
+        # Buat request berdasarkan method
         if method == "GET":
-            request_line = f"{method} {endpoint}{random_param} HTTP/1.1\r\n"
+            if '?' in endpoint:
+                request_line = f"{method} {endpoint}&r={random.randint(1000,9999)} HTTP/1.1\r\n"
+            else:
+                request_line = f"{method} {endpoint}{random_param} HTTP/1.1\r\n"
         elif method == "POST":
             if not payload:
                 payload = random.choice(POST_PAYLOADS)
@@ -156,7 +220,8 @@ def test_request(target, port, endpoint="/", method="GET", delay=0, payload=None
         else:
             request_line = f"{method} {endpoint} HTTP/1.1\r\n"
         
-        headers = get_random_headers(target)
+        # Headers
+        headers = custom_headers if custom_headers else get_random_headers(target)
         request = request_line
         request += f"Host: {target}\r\n"
         request += f"User-Agent: {generate_user_agent()}\r\n"
@@ -170,11 +235,11 @@ def test_request(target, port, endpoint="/", method="GET", delay=0, payload=None
             request += "\r\n"
             request += payload
         else:
-            request += "Connection: close\r\n"
             request += "\r\n"
         
         s.send(request.encode())
         
+        # Baca response
         response = b""
         while True:
             try:
@@ -194,6 +259,7 @@ def test_request(target, port, endpoint="/", method="GET", delay=0, payload=None
             stats['bytes_transferred'] += len(response)
             stats['response_times'].append(response_time)
             
+            # Analisis response
             if len(response) > 0:
                 response_str = response[:100].decode('utf-8', errors='ignore')
                 
@@ -237,13 +303,13 @@ def test_request(target, port, endpoint="/", method="GET", delay=0, payload=None
             except:
                 pass
 
-def worker(target, port, endpoint, method, duration, delay, payload=None):
+def worker(target, port, endpoint, method, duration, delay, payload=None, custom_headers=None):
     """Worker thread"""
     start_time = time.time()
     request_count = 0
     
     while not stop_flag.is_set() and (time.time() - start_time) < duration:
-        test_request(target, port, endpoint, method, delay, payload)
+        test_request(target, port, endpoint, method, delay, payload, custom_headers)
         request_count += 1
         
         if delay > 0:
@@ -251,21 +317,22 @@ def worker(target, port, endpoint, method, duration, delay, payload=None):
         elif stats['error'] > 100 and request_count % 100 == 0:
             time.sleep(0.1)
 
-def attack_mode(target, port, endpoint, duration, threads, method="GET", delay=0, payload=None):
+def attack_mode(target, port, endpoint, duration, threads, method="GET", delay=0, payload=None, custom_headers=None):
     """Mode testing utama"""
-    print(f"\n{Fore.CYAN}┌{'─'*78}┐")
-    print(f"{Fore.CYAN}│{Fore.YELLOW} TEST CONFIGURATION{Fore.CYAN} {' ' * 62}│")
-    print(f"{Fore.CYAN}├{'─'*78}┤")
-    print(f"{Fore.CYAN}│{Fore.WHITE} Target:     {Fore.LIGHTWHITE_EX}{target}:{port}{Fore.CYAN} {' ' * (66 - len(f'{target}:{port}'))}│")
-    print(f"{Fore.CYAN}│{Fore.WHITE} Endpoint:   {Fore.LIGHTWHITE_EX}{endpoint}{Fore.CYAN} {' ' * (66 - len(endpoint))}│")
-    print(f"{Fore.CYAN}│{Fore.WHITE} Method:     {Fore.LIGHTWHITE_EX}{method}{Fore.CYAN} {' ' * 66}│")
-    print(f"{Fore.CYAN}│{Fore.WHITE} Threads:    {Fore.LIGHTWHITE_EX}{threads}{Fore.CYAN} {' ' * 66}│")
-    print(f"{Fore.CYAN}│{Fore.WHITE} Duration:   {Fore.LIGHTWHITE_EX}{duration}s{Fore.CYAN} {' ' * 65}│")
-    print(f"{Fore.CYAN}│{Fore.WHITE} Delay:      {Fore.LIGHTWHITE_EX}{delay}s{Fore.CYAN} {' ' * 65}│")
-    print(f"{Fore.CYAN}└{'─'*78}┘")
+    stats['url_tested'] = f"http://{target}:{port}{endpoint}"
+    
+    print(f"\n{Fore.CYAN}{'='*80}")
+    print(f"{Fore.YELLOW}🎯 TARGET: {Fore.WHITE}{stats['url_tested']}")
+    print(f"{Fore.CYAN}{'='*80}")
+    print(f"{Fore.WHITE}📋 Konfigurasi Test:")
+    print(f"   {Fore.LIGHTBLACK_EX}├─ Method:     {Fore.LIGHTWHITE_EX}{method}")
+    print(f"   {Fore.LIGHTBLACK_EX}├─ Threads:    {Fore.LIGHTWHITE_EX}{threads}")
+    print(f"   {Fore.LIGHTBLACK_EX}├─ Duration:   {Fore.LIGHTWHITE_EX}{duration} detik")
+    print(f"   {Fore.LIGHTBLACK_EX}└─ Delay:      {Fore.LIGHTWHITE_EX}{delay} detik")
+    print(f"{Fore.CYAN}{'='*80}")
     
     print(f"\n{Fore.YELLOW}[!] PERINGATAN: Hanya untuk server milik sendiri!")
-    print(f"{Fore.LIGHTBLACK_EX}[*] Memulai testing...\n")
+    print(f"{Fore.LIGHTBLACK_EX}[*] Memulai testing... Tekan Ctrl+C untuk berhenti\n")
     
     start_time = time.time()
     stats['start_time'] = start_time
@@ -274,7 +341,7 @@ def attack_mode(target, port, endpoint, duration, threads, method="GET", delay=0
     
     try:
         for _ in range(threads):
-            t = threading.Thread(target=worker, args=(target, port, endpoint, method, duration, delay, payload))
+            t = threading.Thread(target=worker, args=(target, port, endpoint, method, duration, delay, payload, custom_headers))
             t.daemon = True
             t.start()
             thread_list.append(t)
@@ -312,9 +379,9 @@ def show_final_report():
     elapsed = stats['end_time'] - stats['start_time'] if stats['end_time'] and stats['start_time'] else 0
     success_rate = (stats['success'] / stats['total_requests'] * 100) if stats['total_requests'] > 0 else 0
     
-    print(f"\n\n{Fore.CYAN}{'═'*80}")
+    print(f"\n\n{Fore.CYAN}{'='*80}")
     print(f"{Fore.YELLOW}📊 HASIL AKHIR HAQTIVIST HTTP TESTER")
-    print(f"{Fore.CYAN}{'═'*80}")
+    print(f"{Fore.CYAN}{'='*80}")
     
     print(f"\n{Fore.WHITE}📈 STATISTIK REQUEST:")
     print(f"  {Fore.GREEN}✓ 2xx Success:     {stats['success_2xx']}")
@@ -353,96 +420,218 @@ def show_final_report():
     else:
         print(f"{Fore.RED}{success_rate:.1f}% (Bad) ⭐")
     
-    print(f"\n{Fore.CYAN}{'═'*80}")
+    print(f"\n{Fore.CYAN}{'='*80}")
     print(f"{Fore.LIGHTBLACK_EX}Test completed at {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
     print(f"{Fore.LIGHTBLACK_EX}HAQTIVIST - For Ethical Testing Only")
 
+# ============ MODE URL ============
+
+def test_single_url(url, threads, duration, delay=0, method="GET"):
+    """Test single URL"""
+    target, port, endpoint, scheme = parse_url(url)
+    
+    if scheme == 'https':
+        print(f"{Fore.RED}[!] HTTPS tidak didukung! Gunakan HTTP.")
+        return
+    
+    print(f"\n{Fore.GREEN}[+] Memproses URL: {url}")
+    attack_mode(target, port, endpoint, duration, threads, method, delay)
+    show_final_report()
+
+def test_multiple_urls(urls, threads, duration, delay=0, method="GET"):
+    """Test multiple URLs"""
+    print(f"\n{Fore.CYAN}{'='*80}")
+    print(f"{Fore.YELLOW}📋 Multi-URL Testing Mode")
+    print(f"{Fore.CYAN}{'='*80}")
+    print(f"{Fore.WHITE}Total URL yang akan di test: {len(urls)}")
+    
+    for i, url in enumerate(urls, 1):
+        print(f"\n{Fore.LIGHTBLACK_EX}{'─'*40}")
+        print(f"{Fore.GREEN}[{i}/{len(urls)}] Testing: {url}")
+        print(f"{Fore.LIGHTBLACK_EX}{'─'*40}")
+        
+        target, port, endpoint, scheme = parse_url(url)
+        
+        if scheme == 'https':
+            print(f"{Fore.RED}[!] HTTPS tidak didukung! Skip: {url}")
+            continue
+        
+        # Reset stats untuk setiap URL
+        for key in stats:
+            if key not in ['url_tested']:
+                if isinstance(stats[key], list):
+                    stats[key] = []
+                else:
+                    stats[key] = 0
+        stats['response_times'] = []
+        
+        attack_mode(target, port, endpoint, duration, threads, method, delay)
+        show_final_report()
+        
+        if i < len(urls):
+            print(f"\n{Fore.YELLOW}[!] Menunggu 2 detik sebelum test URL berikutnya...")
+            time.sleep(2)
+
+# ============ MODE INTERAKTIF ============
+
 def interactive_mode():
     """Mode interaktif - input manual"""
-    print(f"{Fore.CYAN}┌{'─'*78}┐")
-    print(f"{Fore.CYAN}│{Fore.YELLOW} INTERACTIVE MODE{Fore.CYAN} {' ' * 62}│")
-    print(f"{Fore.CYAN}└{'─'*78}┘\n")
+    print(f"\n{Fore.CYAN}{'='*80}")
+    print(f"{Fore.YELLOW}🎮 INTERACTIVE MODE - HTTP TESTER")
+    print(f"{Fore.CYAN}{'='*80}\n")
     
-    target = input(f"{Fore.WHITE}Target IP/Domain {Fore.YELLOW}[localhost]{Fore.WHITE}: ") or "localhost"
-    port = input(f"{Fore.WHITE}Port {Fore.YELLOW}[8080]{Fore.WHITE}: ") or "8080"
-    port = int(port)
+    print(f"{Fore.WHITE}Pilih mode test:")
+    print(f"  {Fore.CYAN}[1] {Fore.WHITE}Single URL")
+    print(f"  {Fore.CYAN}[2] {Fore.WHITE}Multiple URL (dari file)")
+    print(f"  {Fore.CYAN}[3] {Fore.WHITE}Custom target (IP/Host + Port)")
     
-    method = input(f"{Fore.WHITE}HTTP Method {Fore.YELLOW}[GET]{Fore.WHITE}: ") or "GET"
-    method = method.upper()
+    choice = input(f"\n{Fore.YELLOW}Pilihan [1-3]: {Fore.WHITE}").strip()
     
-    endpoint = input(f"{Fore.WHITE}Endpoint {Fore.YELLOW}[/]{Fore.WHITE}: ") or "/"
+    if choice == '1':
+        url = input(f"{Fore.WHITE}URL target {Fore.YELLOW}[http://localhost:8080]{Fore.WHITE}: ") or "http://localhost:8080"
+        method = input(f"{Fore.WHITE}HTTP Method {Fore.YELLOW}[GET]{Fore.WHITE}: ") or "GET"
+        threads = int(input(f"{Fore.WHITE}Threads {Fore.YELLOW}[10]{Fore.WHITE}: ") or "10")
+        duration = int(input(f"{Fore.WHITE}Duration (detik) {Fore.YELLOW}[10]{Fore.WHITE}: ") or "10")
+        delay = float(input(f"{Fore.WHITE}Delay (detik) {Fore.YELLOW}[0]{Fore.WHITE}: ") or "0")
+        
+        save = input(f"{Fore.WHITE}Simpan report? {Fore.YELLOW}[y/N]{Fore.WHITE}: ").lower() == 'y'
+        
+        test_single_url(url, threads, duration, delay, method.upper())
+        
+        if save:
+            save_report()
+            save_csv_report()
     
-    threads = input(f"{Fore.WHITE}Threads {Fore.YELLOW}[10]{Fore.WHITE}: ") or "10"
-    threads = int(threads)
+    elif choice == '2':
+        filename = input(f"{Fore.WHITE}File URL list {Fore.YELLOW}[urls.txt]{Fore.WHITE}: ") or "urls.txt"
+        urls = parse_url_file(filename)
+        if not urls:
+            print(f"{Fore.RED}[!] Tidak ada URL yang ditemukan!")
+            return
+        
+        method = input(f"{Fore.WHITE}HTTP Method {Fore.YELLOW}[GET]{Fore.WHITE}: ") or "GET"
+        threads = int(input(f"{Fore.WHITE}Threads {Fore.YELLOW}[10]{Fore.WHITE}: ") or "10")
+        duration = int(input(f"{Fore.WHITE}Duration (detik) {Fore.YELLOW}[5]{Fore.WHITE}: ") or "5")
+        delay = float(input(f"{Fore.WHITE}Delay (detik) {Fore.YELLOW}[0]{Fore.WHITE}: ") or "0")
+        
+        test_multiple_urls(urls, threads, duration, delay, method.upper())
     
-    duration = input(f"{Fore.WHITE}Duration (seconds) {Fore.YELLOW}[10]{Fore.WHITE}: ") or "10"
-    duration = int(duration)
-    
-    delay = input(f"{Fore.WHITE}Delay between requests (seconds) {Fore.YELLOW}[0]{Fore.WHITE}: ") or "0"
-    delay = float(delay.replace(',', '.'))
-    
-    save = input(f"{Fore.WHITE}Save report to JSON? {Fore.YELLOW}[y/N]{Fore.WHITE}: ").lower() == 'y'
-    
-    return target, port, method, endpoint, threads, duration, delay, save
+    else:
+        target = input(f"{Fore.WHITE}Target IP/Domain {Fore.YELLOW}[localhost]{Fore.WHITE}: ") or "localhost"
+        port = int(input(f"{Fore.WHITE}Port {Fore.YELLOW}[8080]{Fore.WHITE}: ") or "8080")
+        endpoint = input(f"{Fore.WHITE}Endpoint {Fore.YELLOW}[/]{Fore.WHITE}: ") or "/"
+        method = input(f"{Fore.WHITE}HTTP Method {Fore.YELLOW}[GET]{Fore.WHITE}: ") or "GET"
+        threads = int(input(f"{Fore.WHITE}Threads {Fore.YELLOW}[10]{Fore.WHITE}: ") or "10")
+        duration = int(input(f"{Fore.WHITE}Duration (detik) {Fore.YELLOW}[10]{Fore.WHITE}: ") or "10")
+        delay = float(input(f"{Fore.WHITE}Delay (detik) {Fore.YELLOW}[0]{Fore.WHITE}: ") or "0")
+        
+        save = input(f"{Fore.WHITE}Simpan report? {Fore.YELLOW}[y/N]{Fore.WHITE}: ").lower() == 'y'
+        
+        attack_mode(target, port, endpoint, duration, threads, method.upper(), delay)
+        show_final_report()
+        
+        if save:
+            save_report()
+            save_csv_report()
 
 # ============ MAIN ============
+def show_help():
+    """Tampilkan help"""
+    print(f"""
+{Fore.CYAN}HAQTIVIST HTTP TESTER v3.0 - Cara Penggunaan
+
+{Fore.YELLOW}📌 Mode URL (Single):
+{Fore.WHITE}  python haqtivist.py --url http://localhost:8080 --threads 10 --duration 10
+
+{Fore.YELLOW}📌 Mode URL dengan Method POST:
+{Fore.WHITE}  python haqtivist.py --url http://localhost:8080/api --method POST --threads 5 --duration 10
+
+{Fore.YELLOW}📌 Mode Multi-URL (dari file):
+{Fore.WHITE}  python haqtivist.py --urls urls.txt --threads 10 --duration 5
+
+{Fore.YELLOW}📌 Mode Custom (IP/Host + Port):
+{Fore.WHITE}  python haqtivist.py --target localhost -p 8080 --threads 10 --duration 10
+
+{Fore.YELLOW}📌 Mode Interaktif:
+{Fore.WHITE}  python haqtivist.py --interactive
+
+{Fore.YELLOW}📌 Simpan Report:
+{Fore.WHITE}  python haqtivist.py --url http://localhost:8080 --save
+
+{Fore.YELLOW}📌 File URL (urls.txt) format:
+{Fore.WHITE}  http://localhost:8080
+  http://192.168.1.100:8080/api
+  http://example.com
+
+{Fore.YELLOW}⚠️  Peringatan: Hanya untuk testing server milik sendiri!
+    """)
+
 if __name__ == "__main__":
-    print_banner()
-    
     if len(sys.argv) < 2:
-        print(f"{Fore.YELLOW}Usage: python haqtivist.py [OPTIONS]")
-        print(f"\n{Fore.CYAN}Options:")
-        print(f"  {Fore.WHITE}--help, -h{Fore.CYAN}               Show this help")
-        print(f"  {Fore.WHITE}--target <IP> -p <PORT>{Fore.CYAN}    Target specification")
-        print(f"  {Fore.WHITE}--threads <N>{Fore.CYAN}              Number of threads")
-        print(f"  {Fore.WHITE}--duration <S>{Fore.CYAN}             Test duration in seconds")
-        print(f"  {Fore.WHITE}--method <GET|POST>{Fore.CYAN}        HTTP method")
-        print(f"  {Fore.WHITE}--delay <N>{Fore.CYAN}                Delay between requests")
-        print(f"  {Fore.WHITE}--save{Fore.CYAN}                     Save report to JSON")
-        print(f"  {Fore.WHITE}--interactive, -i{Fore.CYAN}          Interactive mode")
-        print(f"\n{Fore.CYAN}Examples:")
-        print(f"  {Fore.WHITE}python haqtivist.py --interactive")
-        print(f"  {Fore.WHITE}python haqtivist.py --target localhost -p 8080 --threads 10 --duration 10")
-        print(f"  {Fore.WHITE}python haqtivist.py localhost 8080 10 10")
+        show_help()
         sys.exit()
     
-    target = "localhost"
-    port = 8080
+    # Default values
+    target = None
+    port = None
+    url = None
+    urls_file = None
     threads = 10
     duration = 10
     method = "GET"
     delay = 0
     endpoint = "/"
-    save_report_flag = False
-    payload = None
+    save_flag = False
+    interactive = False
     
-    if "--interactive" in sys.argv or "-i" in sys.argv:
-        target, port, method, endpoint, threads, duration, delay, save_report_flag = interactive_mode()
-    elif len(sys.argv) >= 4 and sys.argv[1] != "--target":
-        target = sys.argv[1]
-        port = int(sys.argv[2])
-        threads = int(sys.argv[3])
-        duration = int(sys.argv[4])
-        method = sys.argv[5].upper() if len(sys.argv) > 5 else "GET"
-        delay = float(sys.argv[6].replace(',', '.')) if len(sys.argv) > 6 else 0
-    else:
-        for i, arg in enumerate(sys.argv):
-            if arg == "--target" and i+1 < len(sys.argv):
-                target = sys.argv[i+1]
-            elif arg == "-p" and i+1 < len(sys.argv):
-                port = int(sys.argv[i+1])
-            elif arg == "--threads" and i+1 < len(sys.argv):
-                threads = int(sys.argv[i+1])
-            elif arg == "--duration" and i+1 < len(sys.argv):
-                duration = int(sys.argv[i+1])
-            elif arg == "--method" and i+1 < len(sys.argv):
-                method = sys.argv[i+1].upper()
-            elif arg == "--delay" and i+1 < len(sys.argv):
-                delay = float(sys.argv[i+1].replace(',', '.'))
-            elif arg == "--save":
-                save_report_flag = True
+    # Parse arguments
+    i = 1
+    while i < len(sys.argv):
+        arg = sys.argv[i]
+        if arg in ["--help", "-h"]:
+            show_help()
+            sys.exit()
+        elif arg == "--interactive":
+            interactive = True
+            i += 1
+        elif arg == "--url" and i+1 < len(sys.argv):
+            url = sys.argv[i+1]
+            i += 2
+        elif arg == "--urls" and i+1 < len(sys.argv):
+            urls_file = sys.argv[i+1]
+            i += 2
+        elif arg == "--target" and i+1 < len(sys.argv):
+            target = sys.argv[i+1]
+            i += 2
+        elif arg == "-p" and i+1 < len(sys.argv):
+            port = int(sys.argv[i+1])
+            i += 2
+        elif arg == "--threads" and i+1 < len(sys.argv):
+            threads = int(sys.argv[i+1])
+            i += 2
+        elif arg == "--duration" and i+1 < len(sys.argv):
+            duration = int(sys.argv[i+1])
+            i += 2
+        elif arg == "--method" and i+1 < len(sys.argv):
+            method = sys.argv[i+1].upper()
+            i += 2
+        elif arg == "--delay" and i+1 < len(sys.argv):
+            delay = float(sys.argv[i+1].replace(',', '.'))
+            i += 2
+        elif arg == "--save":
+            save_flag = True
+            i += 1
+        else:
+            # Coba parse sebagai URL atau target langsung
+            if not url and not target:
+                if sys.argv[i].startswith(('http://', 'https://')) or '/' in sys.argv[i]:
+                    url = sys.argv[i]
+                else:
+                    target = sys.argv[i]
+            i += 1
     
-    if target != "localhost" and target != "127.0.0.1":
+    # Konfirmasi untuk non-localhost
+    if target and target not in ["localhost", "127.0.0.1"]:
         print(f"{Fore.RED}[!] PERINGATAN: Target '{target}' bukan localhost!")
         print(f"{Fore.RED}[!] Hanya testing server milik sendiri yang diizinkan!")
         confirm = input(f"{Fore.YELLOW}Apakah Anda memiliki izin tertulis untuk testing? (y/N): ").lower()
@@ -450,8 +639,24 @@ if __name__ == "__main__":
             print(f"{Fore.RED}Testing dibatalkan.")
             sys.exit()
     
-    attack_mode(target, port, endpoint, duration, threads, method, delay, payload)
-    show_final_report()
-    
-    if save_report_flag:
-        save_report()
+    if interactive:
+        interactive_mode()
+    elif url:
+        test_single_url(url, threads, duration, delay, method)
+        if save_flag:
+            save_report()
+            save_csv_report()
+    elif urls_file:
+        urls = parse_url_file(urls_file)
+        if urls:
+            test_multiple_urls(urls, threads, duration, delay, method)
+            if save_flag:
+                save_report()
+    elif target and port:
+        attack_mode(target, port, endpoint, duration, threads, method, delay)
+        show_final_report()
+        if save_flag:
+            save_report()
+            save_csv_report()
+    else:
+        show_help()
