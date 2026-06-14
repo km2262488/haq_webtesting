@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 HAQTIVIST HTTP TESTER v3.0
-Ethical Security Testing Tool
+Ethical Security Testing Tool - Untuk Server Milik Sendiri
 """
 
 import socket
@@ -10,32 +10,33 @@ import time
 import sys
 import random
 import json
-import os
 from datetime import datetime
 from colorama import init, Fore, Style
 
 init(autoreset=True)
 
-# ============ BANNER ============
+# ============ BANNER HAQTIVIST (TULISAN BENAR) ============
 def print_banner():
     banner = f"""
-{Fore.YELLOW}╔══════════════════════════════════════════════════════════════════╗
-{Fore.YELLOW}║                                                                      ║
-{Fore.YELLOW}║   {Fore.LIGHTYELLOW_EX}██╗  ██╗ █████╗  ██████╗ ████████╗██╗██╗   ██╗██╗███████╗████████╗{Fore.YELLOW}   ║
-{Fore.YELLOW}║   {Fore.LIGHTYELLOW_EX}██║  ██║██╔══██╗██╔═══██╗╚══██╔══╝██║██║   ██║██║██╔════╝╚══██╔══╝{Fore.YELLOW}   ║
-{Fore.YELLOW}║   {Fore.LIGHTYELLOW_EX}███████║███████║██║   ██║   ██║   ██║██║   ██║██║█████╗     ██║   {Fore.YELLOW}   ║
-{Fore.YELLOW}║   {Fore.LIGHTYELLOW_EX}██╔══██║██╔══██║██║▄▄ ██║   ██║   ██║╚██╗ ██╔╝██║██╔══╝     ██║   {Fore.YELLOW}   ║
-{Fore.YELLOW}║   {Fore.LIGHTYELLOW_EX}██║  ██║██║  ██║╚██████╔╝   ██║   ██║ ╚████╔╝ ██║███████╗   ██║   {Fore.YELLOW}   ║
-{Fore.YELLOW}║   {Fore.LIGHTYELLOW_EX}╚═╝  ╚═╝╚═╝  ╚═╝ ╚══▀▀═╝    ╚═╝   ╚═╝  ╚═══╝  ╚═╝╚══════╝   ╚═╝   {Fore.YELLOW}   ║
-{Fore.YELLOW}║                                                                      ║
-{Fore.YELLOW}║              {Fore.LIGHTYELLOW_EX}H A Q T I V I S T   v3.0{Fore.YELLOW}                              ║
-{Fore.YELLOW}║           {Fore.WHITE}Ethical HTTP Performance Tester{Fore.YELLOW}                          ║
-{Fore.YELLOW}╚══════════════════════════════════════════════════════════════════╝{Style.RESET_ALL}
+{Fore.YELLOW}╔═══════════════════════════════════════════════════════════════════════════════╗
+{Fore.YELLOW}║                                                                               ║
+{Fore.YELLOW}║     {Fore.LIGHTYELLOW_EX}██████╗  █████╗  ██████╗ ████████╗██╗██╗   ██╗██╗███████╗████████╗{Fore.YELLOW}     ║
+{Fore.YELLOW}║     {Fore.LIGHTYELLOW_EX}██╔══██╗██╔══██╗██╔═══██╗╚══██╔══╝██║██║   ██║██║██╔════╝╚══██╔══╝{Fore.YELLOW}     ║
+{Fore.YELLOW}║     {Fore.LIGHTYELLOW_EX}██████╔╝███████║██║   ██║   ██║   ██║██║   ██║██║█████╗     ██║   {Fore.YELLOW}     ║
+{Fore.YELLOW}║     {Fore.LIGHTYELLOW_EX}██╔═══╝ ██╔══██║██║▄▄ ██║   ██║   ██║╚██╗ ██╔╝██║██╔══╝     ██║   {Fore.YELLOW}     ║
+{Fore.YELLOW}║     {Fore.LIGHTYELLOW_EX}██║     ██║  ██║╚██████╔╝   ██║   ██║ ╚████╔╝ ██║███████╗   ██║   {Fore.YELLOW}     ║
+{Fore.YELLOW}║     {Fore.LIGHTYELLOW_EX}╚═╝     ╚═╝  ╚═╝ ╚══▀▀═╝    ╚═╝   ╚═╝  ╚═══╝  ╚═╝╚══════╝   ╚═╝   {Fore.YELLOW}     ║
+{Fore.YELLOW}║                                                                               ║
+{Fore.YELLOW}║                         {Fore.LIGHTYELLOW_EX}H A Q T I V I S T{Fore.YELLOW}                                   ║
+{Fore.YELLOW}║                      {Fore.WHITE}HTTP Performance Testing Tool{Fore.YELLOW}                           ║
+{Fore.YELLOW}║                         {Fore.LIGHTBLACK_EX}For Ethical Use Only{Fore.YELLOW}                               ║
+{Fore.YELLOW}║                                                                               ║
+{Fore.YELLOW}╚═══════════════════════════════════════════════════════════════════════════════╝{Style.RESET_ALL}
 """
     print(banner)
     print(f"{Fore.LIGHTBLACK_EX}[+] Started at: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
-    print(f"{Fore.LIGHTBLACK_EX}[+] Mode: Ethical Testing Only")
-    print(f"{Fore.YELLOW}{'='*70}{Style.RESET_ALL}\n")
+    print(f"{Fore.LIGHTBLACK_EX}[+] Mode: Ethical Testing Only - Server Milik Sendiri")
+    print(f"{Fore.YELLOW}{'='*80}{Style.RESET_ALL}\n")
 
 # ============ KONFIGURASI ============
 stats = {
@@ -56,15 +57,13 @@ stats = {
 lock = threading.Lock()
 stop_flag = threading.Event()
 
-# Konfigurasi payload untuk POST - FIXED
+# Konfigurasi payload untuk POST
 POST_PAYLOADS = [
     '{"username":"test","password":"test123"}',
     "name=test&email=test@example.com",
     '{"data":"sample","value":123}',
     "------WebKitFormBoundary\r\nContent-Disposition: form-data; name=\"file\"\r\n\r\ntest\r\n------WebKitFormBoundary--"
 ]
-
-# ============ FITUR TAMBAHAN ============
 
 def generate_user_agent():
     """Random User-Agent"""
@@ -93,7 +92,10 @@ def get_random_headers(target):
 
 def save_report(filename="haqtivist_report.json"):
     """Simpan hasil test ke file JSON"""
+    elapsed = (stats['end_time'] - stats['start_time']) if stats['end_time'] and stats['start_time'] else 0
     report = {
+        "tool": "HAQTIVIST HTTP TESTER",
+        "version": "3.0",
         "timestamp": datetime.now().isoformat(),
         "stats": {
             'success': stats['success'],
@@ -106,8 +108,11 @@ def save_report(filename="haqtivist_report.json"):
             'total_requests': stats['total_requests'],
             'bytes_transferred': stats['bytes_transferred']
         },
-        "avg_response_time": sum(stats['response_times']) / len(stats['response_times']) if stats['response_times'] else 0,
-        "duration": (stats['end_time'] - stats['start_time']) if stats['end_time'] and stats['start_time'] else 0
+        "performance": {
+            "duration": elapsed,
+            "avg_response_time_ms": (sum(stats['response_times']) / len(stats['response_times']) * 1000) if stats['response_times'] else 0,
+            "rps": stats['total_requests'] / elapsed if elapsed > 0 else 0
+        }
     }
     
     with open(filename, 'w') as f:
@@ -140,10 +145,8 @@ def test_request(target, port, endpoint="/", method="GET", delay=0, payload=None
         s.settimeout(5)
         s.connect((target, port))
         
-        # Generate parameter random
         random_param = f"?_={int(time.time())}&r={random.randint(1000,9999)}"
         
-        # Buat request berdasarkan method
         if method == "GET":
             request_line = f"{method} {endpoint}{random_param} HTTP/1.1\r\n"
         elif method == "POST":
@@ -153,7 +156,6 @@ def test_request(target, port, endpoint="/", method="GET", delay=0, payload=None
         else:
             request_line = f"{method} {endpoint} HTTP/1.1\r\n"
         
-        # Headers
         headers = get_random_headers(target)
         request = request_line
         request += f"Host: {target}\r\n"
@@ -173,7 +175,6 @@ def test_request(target, port, endpoint="/", method="GET", delay=0, payload=None
         
         s.send(request.encode())
         
-        # Baca response
         response = b""
         while True:
             try:
@@ -193,7 +194,6 @@ def test_request(target, port, endpoint="/", method="GET", delay=0, payload=None
             stats['bytes_transferred'] += len(response)
             stats['response_times'].append(response_time)
             
-            # Analisis response
             if len(response) > 0:
                 response_str = response[:100].decode('utf-8', errors='ignore')
                 
@@ -253,16 +253,16 @@ def worker(target, port, endpoint, method, duration, delay, payload=None):
 
 def attack_mode(target, port, endpoint, duration, threads, method="GET", delay=0, payload=None):
     """Mode testing utama"""
-    print(f"\n{Fore.CYAN}┌{'─'*68}┐")
-    print(f"{Fore.CYAN}│{Fore.YELLOW} TEST CONFIGURATION{Fore.CYAN} {' ' * 52}│")
-    print(f"{Fore.CYAN}├{'─'*68}┤")
-    print(f"{Fore.CYAN}│{Fore.WHITE} Target:     {Fore.LIGHTWHITE_EX}{target}:{port}{Fore.CYAN} {' ' * (56 - len(f'{target}:{port}'))}│")
-    print(f"{Fore.CYAN}│{Fore.WHITE} Endpoint:   {Fore.LIGHTWHITE_EX}{endpoint}{Fore.CYAN} {' ' * (56 - len(endpoint))}│")
-    print(f"{Fore.CYAN}│{Fore.WHITE} Method:     {Fore.LIGHTWHITE_EX}{method}{Fore.CYAN} {' ' * 56}│")
-    print(f"{Fore.CYAN}│{Fore.WHITE} Threads:    {Fore.LIGHTWHITE_EX}{threads}{Fore.CYAN} {' ' * 56}│")
-    print(f"{Fore.CYAN}│{Fore.WHITE} Duration:   {Fore.LIGHTWHITE_EX}{duration}s{Fore.CYAN} {' ' * 55}│")
-    print(f"{Fore.CYAN}│{Fore.WHITE} Delay:      {Fore.LIGHTWHITE_EX}{delay}s{Fore.CYAN} {' ' * 55}│")
-    print(f"{Fore.CYAN}└{'─'*68}┘")
+    print(f"\n{Fore.CYAN}┌{'─'*78}┐")
+    print(f"{Fore.CYAN}│{Fore.YELLOW} TEST CONFIGURATION{Fore.CYAN} {' ' * 62}│")
+    print(f"{Fore.CYAN}├{'─'*78}┤")
+    print(f"{Fore.CYAN}│{Fore.WHITE} Target:     {Fore.LIGHTWHITE_EX}{target}:{port}{Fore.CYAN} {' ' * (66 - len(f'{target}:{port}'))}│")
+    print(f"{Fore.CYAN}│{Fore.WHITE} Endpoint:   {Fore.LIGHTWHITE_EX}{endpoint}{Fore.CYAN} {' ' * (66 - len(endpoint))}│")
+    print(f"{Fore.CYAN}│{Fore.WHITE} Method:     {Fore.LIGHTWHITE_EX}{method}{Fore.CYAN} {' ' * 66}│")
+    print(f"{Fore.CYAN}│{Fore.WHITE} Threads:    {Fore.LIGHTWHITE_EX}{threads}{Fore.CYAN} {' ' * 66}│")
+    print(f"{Fore.CYAN}│{Fore.WHITE} Duration:   {Fore.LIGHTWHITE_EX}{duration}s{Fore.CYAN} {' ' * 65}│")
+    print(f"{Fore.CYAN}│{Fore.WHITE} Delay:      {Fore.LIGHTWHITE_EX}{delay}s{Fore.CYAN} {' ' * 65}│")
+    print(f"{Fore.CYAN}└{'─'*78}┘")
     
     print(f"\n{Fore.YELLOW}[!] PERINGATAN: Hanya untuk server milik sendiri!")
     print(f"{Fore.LIGHTBLACK_EX}[*] Memulai testing...\n")
@@ -312,9 +312,9 @@ def show_final_report():
     elapsed = stats['end_time'] - stats['start_time'] if stats['end_time'] and stats['start_time'] else 0
     success_rate = (stats['success'] / stats['total_requests'] * 100) if stats['total_requests'] > 0 else 0
     
-    print(f"\n\n{Fore.CYAN}{'═'*70}")
+    print(f"\n\n{Fore.CYAN}{'═'*80}")
     print(f"{Fore.YELLOW}📊 HASIL AKHIR HAQTIVIST HTTP TESTER")
-    print(f"{Fore.CYAN}{'═'*70}")
+    print(f"{Fore.CYAN}{'═'*80}")
     
     print(f"\n{Fore.WHITE}📈 STATISTIK REQUEST:")
     print(f"  {Fore.GREEN}✓ 2xx Success:     {stats['success_2xx']}")
@@ -353,15 +353,15 @@ def show_final_report():
     else:
         print(f"{Fore.RED}{success_rate:.1f}% (Bad) ⭐")
     
-    print(f"\n{Fore.CYAN}{'═'*70}")
+    print(f"\n{Fore.CYAN}{'═'*80}")
     print(f"{Fore.LIGHTBLACK_EX}Test completed at {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
     print(f"{Fore.LIGHTBLACK_EX}HAQTIVIST - For Ethical Testing Only")
 
 def interactive_mode():
     """Mode interaktif - input manual"""
-    print(f"{Fore.CYAN}┌{'─'*68}┐")
-    print(f"{Fore.CYAN}│{Fore.YELLOW} INTERACTIVE MODE{Fore.CYAN} {' ' * 52}│")
-    print(f"{Fore.CYAN}└{'─'*68}┘\n")
+    print(f"{Fore.CYAN}┌{'─'*78}┐")
+    print(f"{Fore.CYAN}│{Fore.YELLOW} INTERACTIVE MODE{Fore.CYAN} {' ' * 62}│")
+    print(f"{Fore.CYAN}└{'─'*78}┘\n")
     
     target = input(f"{Fore.WHITE}Target IP/Domain {Fore.YELLOW}[localhost]{Fore.WHITE}: ") or "localhost"
     port = input(f"{Fore.WHITE}Port {Fore.YELLOW}[8080]{Fore.WHITE}: ") or "8080"
