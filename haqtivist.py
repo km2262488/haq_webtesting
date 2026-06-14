@@ -164,16 +164,7 @@ def live_stats_display(threads_active, elapsed, rps, target, port):
         sys.stdout.write(status_line + Style.RESET_ALL)
         sys.stdout.flush()
 
-def test_request(target, port, endpoint="/", method="GET", delay=0, payload=None):
-    """HTTP Request dengan berbagai fitur"""
-    global stats
-    start_time = time.time()
-    s = None
-    
-    try:
-        s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        s.settimeout(5)
-        s.connect((target, port))
+
         
         # Generate parameter random
         random_param = f"?_={int(time.time())}&r={random.randint(1000,9999)}"
@@ -185,7 +176,29 @@ def test_request(target, port, endpoint="/", method="GET", delay=0, payload=None
             else:
                 request_line = f"{method} {endpoint}{random_param} HTTP/1.1\r\n"
         elif method == "POST":
-            if not payload:
+            if not pdef test_request(target, port, endpoint="/", method="GET", delay=0, payload=None, use_https=False):
+    """HTTP/HTTPS Request dengan berbagai fitur"""
+    global stats
+    start_time = time.time()
+    s = None
+    
+    try:
+        # Buat socket biasa dulu
+        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        sock.settimeout(5)
+        sock.connect((target, port))
+        
+        # Jika HTTPS, bungkus dengan SSL
+        if use_https:
+            import ssl
+            context = ssl.create_default_context()
+            s = context.wrap_socket(sock, server_hostname=target)
+        else:
+            s = sock
+        
+        
+    except Exception as e:
+        # ... error handling ...ayload:
                 payload = random.choice(POST_PAYLOADS)
             request_line = f"{method} {endpoint} HTTP/1.1\r\n"
         else:
