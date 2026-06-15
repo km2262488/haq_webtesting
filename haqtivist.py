@@ -59,8 +59,8 @@ def get_random_headers(target):
 def save_report(filename="haqtivist_report.json"):
     elapsed = (stats['end_time'] - stats['start_time']) if stats['end_time'] and stats['start_time'] else 0
     report = {
-        "tool": "HAQTIVIST HTTP TESTER",
-        "version": "3.0",
+        "tool": "HAQTIVIST HTTP TOOLS",
+        "version": "1.0",
         "timestamp": datetime.now().isoformat(),
         "url_tested": stats['url_tested'],
         "stats": {
@@ -176,7 +176,7 @@ def attack_mode(target, port, endpoint, duration, threads, method="GET", delay=0
     print(f"   {Fore.LIGHTBLACK_EX}└─ Delay:      {Fore.LIGHTWHITE_EX}{delay} detik")
     print(f"{Fore.CYAN}{'='*70}")
     
-    print(f"\n{Fore.YELLOW}[!] PERINGATAN: Bismillah dulu baru klik enter")
+    print(f"\n{Fore.YELLOW}FAQADDARAHU TAQDIRAA WA KAFAA BILLAAHI SYAHIIDA")
     print(f"{Fore.LIGHTBLACK_EX}[*] Memulai testing... Tekan Ctrl+C untuk berhenti\n")
     
     # Header Live Stats
@@ -287,7 +287,7 @@ def parse_url(url):
 
 def show_help():
     print(f"""
-{Fore.CYAN}HAQTIVIST HTTP TESTER v3.0
+{Fore.CYAN}HAQTIVIST HTTP TOOLS v1.0
 
 {Fore.YELLOW}Cara Penggunaan:{Fore.WHITE}
   python haqtivist.py --url http://localhost:8080 --threads 5 --duration 10
