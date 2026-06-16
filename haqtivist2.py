@@ -400,6 +400,24 @@ def attack_mode(target, port, endpoint, duration, threads, method="GET", delay=0
     thread_list = []
     last_update = 0
     monitor_interval = 5  # seconds
+
+    def analyze_results():
+    print(f"\n{Fore.YELLOW}📊 DETAILED ANALYSIS:")
+    
+    # Response time distribution
+    if stats['response_times']:
+        sorted_times = sorted(stats['response_times'])
+        percentiles = {
+            'p50': sorted_times[int(len(sorted_times)*0.5)] * 1000,
+            'p90': sorted_times[int(len(sorted_times)*0.9)] * 1000,
+            'p95': sorted_times[int(len(sorted_times)*0.95)] * 1000,
+            'p99': sorted_times[int(len(sorted_times)*0.99)] * 1000
+        }
+        print(f"  {Fore.WHITE}Response Time Percentiles:")
+        print(f"    {Fore.GREEN}├─ P50 (median): {percentiles['p50']:.1f}ms")
+        print(f"    {Fore.YELLOW}├─ P90:          {percentiles['p90']:.1f}ms")
+        print(f"    {Fore.YELLOW}├─ P95:          {percentiles['p95']:.1f}ms")
+        print(f"    {Fore.RED}└─ P99:          {percentiles['p99']:.1f}ms")
     
     try:
         for _ in range(threads):
